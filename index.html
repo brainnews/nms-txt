@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NMS.TXT - A Text-Based Space Exploration Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* ===== E-INK OPTIMIZED STYLES ===== */
+
+        /* Disable ALL animations and transitions for e-ink */
+        *, *::before, *::after {
+            animation: none !important;
+            transition: none !important;
+        }
+
+        /* Root variables */
+        :root {
+            --bg-color: #FEFEF8;
+            --text-color: #1A1A1A;
+            --border-color: #CCCCCC;
+            --button-bg: #333333;
+            --button-text: #FFFFFF;
+            --accent-color: #666666;
+            --error-color: #8B0000;
+            --success-color: #006400;
+        }
+
+        /* Base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Georgia, 'Palatino Linotype', serif;
+            font-size: 20px;
+            line-height: 1.8;
+            letter-spacing: 0.02em;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            padding: 20px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+        }
+
+        .settings-btn {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            min-width: 48px;
+            min-height: 48px;
+        }
+
+        .settings-btn:active {
+            background: var(--button-text);
+            color: var(--button-bg);
+        }
+
+        /* Main narrative area */
+        #narrative {
+            min-height: 300px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        #narrative p {
+            margin-bottom: 1.5em;
+        }
+
+        /* Markdown formatting within narrative */
+        #narrative h1,
+        #narrative h2,
+        #narrative h3 {
+            font-weight: bold;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            line-height: 1.4;
+        }
+
+        #narrative h1 {
+            font-size: 26px;
+        }
+
+        #narrative h2 {
+            font-size: 24px;
+        }
+
+        #narrative h3 {
+            font-size: 22px;
+        }
+
+        #narrative em {
+            font-style: italic;
+        }
+
+        #narrative strong {
+            font-weight: bold;
+        }
+
+        #narrative ul,
+        #narrative ol {
+            margin: 1em 0;
+            padding-left: 2em;
+        }
+
+        #narrative li {
+            margin-bottom: 0.5em;
+        }
+
+        #narrative code {
+            font-family: 'Courier New', monospace;
+            background: var(--border-color);
+            padding: 2px 6px;
+        }
+
+        #narrative blockquote {
+            border-left: 3px solid var(--accent-color);
+            padding-left: 20px;
+            margin: 1em 0;
+            font-style: italic;
+        }
+
+        /* Dice roll display */
+        #dice-result {
+            display: none;
+            background: var(--accent-color);
+            color: var(--bg-color);
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            border: 2px solid var(--text-color);
+        }
+
+        /* Action options */
+        #actions {
+            margin-bottom: 30px;
+            padding: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        #actions h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        #options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .action-btn {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 20px 30px;
+            font-size: 18px;
+            font-family: Georgia, serif;
+            text-align: left;
+            cursor: pointer;
+            min-height: 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .action-btn:active {
+            background: var(--button-text);
+            color: var(--button-bg);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .difficulty-badge {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Custom action input */
+        #custom-action-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        #custom-action-input {
+            flex: 1;
+            padding: 15px;
+            font-size: 18px;
+            font-family: Georgia, serif;
+            border: 2px solid var(--border-color);
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #custom-action-submit {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            min-width: 48px;
+        }
+
+        #custom-action-submit:active {
+            background: var(--button-text);
+            color: var(--button-bg);
+        }
+
+        /* Status bar */
+        #status-bar {
+            padding: 20px 30px;
+            background: var(--accent-color);
+            color: var(--bg-color);
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: space-between;
+        }
+
+        .status-item {
+            white-space: nowrap;
+        }
+
+        /* Inventory panel */
+        #inventory-panel {
+            border: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        #inventory-header {
+            padding: 15px 30px;
+            background: var(--button-bg);
+            color: var(--button-text);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            min-height: 48px;
+        }
+
+        #inventory-header:active {
+            background: var(--button-text);
+            color: var(--button-bg);
+        }
+
+        #inventory-items {
+            padding: 30px;
+            display: none;
+        }
+
+        #inventory-items.open {
+            display: block;
+        }
+
+        .inventory-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', monospace;
+        }
+
+        .inventory-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Loading state */
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            font-size: 22px;
+            color: var(--accent-color);
+        }
+
+        #loading.visible {
+            display: block;
+        }
+
+        /* Error message */
+        #error-message {
+            display: none;
+            background: var(--error-color);
+            color: var(--bg-color);
+            padding: 20px 30px;
+            margin: 20px 0;
+            border: 2px solid var(--text-color);
+        }
+
+        #error-message.visible {
+            display: block;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            border: 3px solid var(--text-color);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .modal-content h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-content input,
+        .modal-content select {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            border: 2px solid var(--border-color);
+            margin-bottom: 20px;
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .modal-content label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 20px;
+            font-size: 18px;
+            font-family: Georgia, serif;
+            cursor: pointer;
+            min-height: 48px;
+        }
+
+        .modal-btn:active {
+            background: var(--button-text);
+            color: var(--button-bg);
+        }
+
+        .modal-btn.secondary {
+            background: var(--accent-color);
+        }
+
+        /* Save slots */
+        .save-slot {
+            border: 2px solid var(--border-color);
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .save-slot:active {
+            background: var(--border-color);
+        }
+
+        .save-slot.empty {
+            opacity: 0.6;
+        }
+
+        .save-slot-header {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .save-slot-info {
+            font-size: 16px;
+            color: var(--accent-color);
+        }
+
+        /* Game menu buttons */
+        #game-menu {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .menu-btn {
+            flex: 1;
+            min-width: 150px;
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 20px;
+            font-size: 16px;
+            font-family: Georgia, serif;
+            cursor: pointer;
+            min-height: 48px;
+        }
+
+        .menu-btn:active {
+            background: var(--button-text);
+            color: var(--button-bg);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+                font-size: 18px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            #narrative {
+                padding: 25px;
+            }
+
+            #actions {
+                padding: 20px;
+            }
+
+            .modal-content {
+                padding: 25px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .settings-btn,
+            #actions,
+            #game-menu,
+            .modal {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <h1>NMS.TXT</h1>
+        <button class="settings-btn" id="settings-btn" aria-label="Open settings">⚙</button>
+    </header>
+
+    <!-- Main narrative area -->
+    <main>
+        <div id="narrative" role="article" aria-live="polite">
+            <p>Welcome to NMS.TXT...</p>
+        </div>
+
+        <!-- Dice roll result -->
+        <div id="dice-result" role="status" aria-live="assertive"></div>
+
+        <!-- Error message -->
+        <div id="error-message" role="alert" aria-live="assertive"></div>
+
+        <!-- Loading indicator -->
+        <div id="loading" role="status" aria-live="polite"></div>
+
+        <!-- Status bar -->
+        <div id="status-bar" role="status">
+            <div class="status-item">Ship: <span id="ship-health">0</span>%</div>
+            <div class="status-item">Fuel: <span id="fuel">0</span></div>
+            <div class="status-item" id="location-display">Location: Unknown</div>
+        </div>
+
+        <!-- Inventory panel -->
+        <div id="inventory-panel">
+            <div id="inventory-header" role="button" tabindex="0" aria-expanded="false">
+                <span>Inventory</span>
+                <span id="inventory-toggle">[+]</span>
+            </div>
+            <div id="inventory-items" aria-hidden="true">
+                <div class="inventory-item">Empty</div>
+            </div>
+        </div>
+
+        <!-- Action options -->
+        <section id="actions">
+            <h2>Actions</h2>
+            <div id="options" role="menu">
+                <!-- Action buttons will be dynamically generated -->
+            </div>
+
+            <!-- Custom action -->
+            <form id="custom-action-form">
+                <input
+                    type="text"
+                    id="custom-action-input"
+                    placeholder="Type your own action..."
+                    aria-label="Custom action input"
+                    maxlength="200"
+                />
+                <button type="submit" id="custom-action-submit" aria-label="Submit custom action">→</button>
+            </form>
+        </section>
+
+        <!-- Game menu -->
+        <div id="game-menu">
+            <button class="menu-btn" id="save-btn">Save Game</button>
+            <button class="menu-btn" id="load-btn">Load Game</button>
+            <button class="menu-btn" id="new-game-btn">New Game</button>
+        </div>
+    </main>
+
+    <!-- API Key Modal -->
+    <div id="api-key-modal" class="modal" role="dialog" aria-labelledby="api-key-title">
+        <div class="modal-content">
+            <h2 id="api-key-title">Enter Claude API Key</h2>
+            <p>NMS.TXT uses the Claude API to generate your unique space exploration adventure. You'll need a Claude API key to play.</p>
+            <p><strong>Note:</strong> Your API key is stored locally in your browser and is never sent to any server except Anthropic's API. API usage will be billed to your Anthropic account.</p>
+            <label for="api-key-input">API Key:</label>
+            <input
+                type="password"
+                id="api-key-input"
+                placeholder="sk-ant-api03-..."
+                aria-required="true"
+            />
+            <div class="modal-buttons">
+                <button class="modal-btn" id="api-key-submit">Start Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal" role="dialog" aria-labelledby="settings-title">
+        <div class="modal-content">
+            <h2 id="settings-title">Settings</h2>
+
+            <label for="font-size-select">Font Size:</label>
+            <select id="font-size-select">
+                <option value="18">Small (18px)</option>
+                <option value="20" selected>Medium (20px)</option>
+                <option value="22">Large (22px)</option>
+                <option value="24">Extra Large (24px)</option>
+            </select>
+
+            <label for="auto-save-toggle">
+                <input type="checkbox" id="auto-save-toggle" checked> Enable auto-save
+            </label>
+
+            <div style="margin-top: 30px;">
+                <button class="modal-btn secondary" id="change-api-key-btn">Change API Key</button>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn" id="settings-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Game Modal -->
+    <div id="save-modal" class="modal" role="dialog" aria-labelledby="save-title">
+        <div class="modal-content">
+            <h2 id="save-title">Save Game</h2>
+            <p>Choose a save slot:</p>
+            <div id="save-slots">
+                <!-- Save slots will be dynamically generated -->
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="save-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Game Modal -->
+    <div id="load-modal" class="modal" role="dialog" aria-labelledby="load-title">
+        <div class="modal-content">
+            <h2 id="load-title">Load Game</h2>
+            <p>Choose a save to load:</p>
+            <div id="load-slots">
+                <!-- Load slots will be dynamically generated -->
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" id="load-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Continue or New Game Modal -->
+    <div id="continue-modal" class="modal" role="dialog" aria-labelledby="continue-title">
+        <div class="modal-content">
+            <h2 id="continue-title">Welcome Back</h2>
+            <p>An auto-saved game was found. Would you like to continue or start a new adventure?</p>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="continue-btn">Continue</button>
+                <button class="modal-btn secondary" id="start-new-btn">New Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== MARKDOWN CONFIGURATION =====
+        // Configure marked.js for clean, e-ink friendly rendering
+        marked.setOptions({
+            breaks: true,        // Convert \n to <br>
+            gfm: true,           // GitHub Flavored Markdown
+            headerIds: false,    // Don't add IDs to headers (cleaner HTML)
+            mangle: false        // Don't escape email addresses
+        });
+
+        // ===== CONFIGURATION CONSTANTS =====
+        const CLAUDE_CONFIG = {
+            apiEndpoint: '/api/chat', // Proxy endpoint
+            model: 'claude-sonnet-4-5-20250929',
+            maxTokens: 2048,
+            temperature: 0.8,
+            apiVersion: '2023-06-01'
+        };
+
+        const STORAGE_KEYS = {
+            apiKey: 'nmstxt_api_key',
+            settings: 'nmstxt_settings',
+            autoSave: 'nmstxt_save_0',
+            savePrefix: 'nmstxt_save_'
+        };
+
+        const GAME_CONSTANTS = {
+            maxConversationHistory: 20,
+            maxActionHistory: 50,
+            autoSaveDelay: 30000, // 30 seconds
+            maxSaveSize: 4.5 * 1024 * 1024 // 4.5MB
+        };
+
+        const DIFFICULTY_DC = {
+            easy: 8,
+            medium: 12,
+            hard: 16,
+            'very hard': 20
+        };
+
+        // ===== SYSTEM PROMPT =====
+        const SYSTEM_PROMPT = `You are the Game Master for NMS.TXT, a text-based space exploration game inspired by No Man's Sky.
+
+CORE RULES:
+1. Players CANNOT skip progression - they must overcome challenges
+2. Starting condition: Crashed on random planet, ship 15% functional, no fuel
+3. Ultimate goal: Repair ship → explore galaxy → reach center
+4. Procedural generation: Every planet, alien, event is unique
+5. Death is possible - actions have consequences
+
+GAME MECHANICS YOU MUST ENFORCE:
+- Dice rolls for difficulty: Easy (DC 8), Medium (DC 12), Hard (DC 16), Very Hard (DC 20)
+- When player takes action that requires skill check, the roll result will be provided
+- Resources required for repairs: specific amounts needed
+- Fuel consumption: warp jumps require plutonium
+- Alien encounters: varied species with unique languages/behaviors
+- Hazards: toxic atmosphere, extreme heat/cold, radiation, hostile fauna
+
+RESPONSE FORMAT:
+1. Narrative description (2-3 paragraphs, vivid but concise)
+2. If dice roll result was provided, narrate the outcome (success/failure/critical)
+3. [STATE UPDATE] section with changes (if any)
+   Format: "Ship: +5% | Fuel: +10 | Inventory: +Iron x5"
+4. [OPTIONS] section with 3-4 numbered choices
+   Format: "1. [Action text] (Difficulty)"
+   Example: "1. Explore the crash site (Easy)"
+
+TONE: Atmospheric, mysterious, sometimes humorous, always engaging
+PACING: Progressive difficulty, early game easier, late game challenging
+VARIETY: Mix combat, exploration, puzzles, diplomacy, survival
+
+Current game state will be provided in each message.`;
+
+        // ===== STATE VARIABLES =====
+        let gameState = null;
+        let autoSaveTimeout = null;
+        let isProcessingAction = false;
+
+        // ===== GAME STATE INITIALIZATION =====
+        function createInitialGameState() {
+            return {
+                version: '1.0.0',
+                saveSlot: 0,
+                lastSaved: Date.now(),
+
+                currentLocation: {
+                    planetName: 'Unknown',
+                    planetType: 'unknown',
+                    systemName: 'Unknown',
+                    distanceFromCenter: 715342
+                },
+
+                ship: {
+                    health: 15,
+                    fuel: 0,
+                    warpCapable: false,
+                    launchCapable: false
+                },
+
+                inventory: {
+                    carbon: 0,
+                    iron: 0,
+                    plutonium: 0,
+                    heridium: 0,
+                    zinc: 0,
+                    titanium: 0
+                },
+
+                conversationHistory: [],
+
+                currentNarrative: '',
+                currentOptions: [],
+
+                stats: {
+                    planetsVisited: 1,
+                    aliensEncountered: 0,
+                    resourcesGathered: 0,
+                    jumpsCompleted: 0,
+                    deathCount: 0,
+                    actionsToken: 0
+                },
+
+                actionHistory: []
+            };
+        }
+
+        // ===== API KEY MANAGEMENT =====
+        function getApiKey() {
+            const encoded = localStorage.getItem(STORAGE_KEYS.apiKey);
+            if (!encoded) return null;
+            try {
+                return atob(encoded);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function saveApiKey(key) {
+            const encoded = btoa(key);
+            localStorage.setItem(STORAGE_KEYS.apiKey, encoded);
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem(STORAGE_KEYS.apiKey);
+        }
+
+        // ===== SETTINGS MANAGEMENT =====
+        function getSettings() {
+            const defaults = {
+                fontSize: 20,
+                autoSave: true
+            };
+
+            const stored = localStorage.getItem(STORAGE_KEYS.settings);
+            if (!stored) return defaults;
+
+            try {
+                return { ...defaults, ...JSON.parse(stored) };
+            } catch (e) {
+                return defaults;
+            }
+        }
+
+        function saveSettings(settings) {
+            localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+            applySettings(settings);
+        }
+
+        function applySettings(settings) {
+            document.body.style.fontSize = settings.fontSize + 'px';
+        }
+
+        // ===== SAVE/LOAD FUNCTIONS =====
+        function saveGame(slotNumber) {
+            if (!gameState) {
+                showError('No game to save');
+                return false;
+            }
+
+            const saveData = {
+                id: slotNumber,
+                timestamp: Date.now(),
+                gameState: JSON.parse(JSON.stringify(gameState)),
+                thumbnail: {
+                    location: gameState.currentLocation.planetName,
+                    stats: `${gameState.stats.planetsVisited} planets`,
+                    lastAction: gameState.actionHistory[0]?.action || 'New Game'
+                }
+            };
+
+            try {
+                const saveString = JSON.stringify(saveData);
+                if (saveString.length > GAME_CONSTANTS.maxSaveSize) {
+                    throw new Error('Save file too large');
+                }
+
+                const key = STORAGE_KEYS.savePrefix + slotNumber;
+                localStorage.setItem(key, saveString);
+                return true;
+            } catch (error) {
+                console.error('Save failed:', error);
+                showError('Failed to save: ' + error.message);
+                return false;
+            }
+        }
+
+        function loadGame(slotNumber) {
+            const key = STORAGE_KEYS.savePrefix + slotNumber;
+            const saveString = localStorage.getItem(key);
+
+            if (!saveString) {
+                showError('No save found in slot ' + slotNumber);
+                return false;
+            }
+
+            try {
+                const saveData = JSON.parse(saveString);
+                gameState = saveData.gameState;
+                updateGameUI();
+                return true;
+            } catch (error) {
+                console.error('Load failed:', error);
+                showError('Failed to load: ' + error.message);
+                return false;
+            }
+        }
+
+        function listSaveSlots() {
+            const slots = [];
+            for (let i = 0; i <= 5; i++) {
+                const key = STORAGE_KEYS.savePrefix + i;
+                const saveString = localStorage.getItem(key);
+
+                if (saveString) {
+                    try {
+                        const saveData = JSON.parse(saveString);
+                        slots.push({
+                            slot: i,
+                            timestamp: saveData.timestamp,
+                            thumbnail: saveData.thumbnail,
+                            empty: false
+                        });
+                    } catch (e) {
+                        slots.push({ slot: i, empty: true });
+                    }
+                } else {
+                    slots.push({ slot: i, empty: true });
+                }
+            }
+            return slots;
+        }
+
+        function autoSave() {
+            const settings = getSettings();
+            if (!settings.autoSave || !gameState) return;
+
+            saveGame(0); // Slot 0 is auto-save
+        }
+
+        function scheduleAutoSave() {
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+            }
+            autoSaveTimeout = setTimeout(autoSave, GAME_CONSTANTS.autoSaveDelay);
+        }
+
+        // ===== DICE ROLL SYSTEM =====
+        function rollDice(sides = 20) {
+            return Math.floor(Math.random() * sides) + 1;
+        }
+
+        function performSkillCheck(difficulty, bonuses = 0) {
+            const roll = rollDice(20);
+            const total = roll + bonuses;
+            const dc = DIFFICULTY_DC[difficulty.toLowerCase()] || 12;
+            const success = total >= dc;
+
+            return {
+                roll,
+                bonuses,
+                total,
+                dc,
+                success,
+                criticalSuccess: roll === 20,
+                criticalFailure: roll === 1,
+                difficulty
+            };
+        }
+
+        function displayDiceRoll(check) {
+            const diceEl = document.getElementById('dice-result');
+            let result = `🎲 Rolling for ${check.difficulty}...\n`;
+            result += `Roll: ${check.roll}`;
+            if (check.bonuses !== 0) {
+                result += ` + ${check.bonuses}`;
+            }
+            result += ` = ${check.total} vs DC ${check.dc}\n`;
+
+            if (check.criticalSuccess) {
+                result += `CRITICAL SUCCESS! ⭐`;
+            } else if (check.criticalFailure) {
+                result += `CRITICAL FAILURE! 💀`;
+            } else if (check.success) {
+                result += `SUCCESS! ✓`;
+            } else {
+                result += `FAILURE ✗`;
+            }
+
+            diceEl.textContent = result;
+            diceEl.style.display = 'block';
+        }
+
+        // ===== CLAUDE API INTEGRATION =====
+        async function callClaudeAPI(userMessage) {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error('API key required');
+            }
+
+            const messages = [
+                ...gameState.conversationHistory,
+                {
+                    role: 'user',
+                    content: userMessage
+                }
+            ];
+
+            try {
+                const response = await fetch(CLAUDE_CONFIG.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify({
+                        model: CLAUDE_CONFIG.model,
+                        max_tokens: CLAUDE_CONFIG.maxTokens,
+                        temperature: CLAUDE_CONFIG.temperature,
+                        system: SYSTEM_PROMPT,
+                        messages: messages,
+                        apiVersion: CLAUDE_CONFIG.apiVersion
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        clearApiKey();
+                        throw new Error('Invalid API key. Please enter a new one.');
+                    }
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.content[0].text;
+
+            } catch (error) {
+                console.error('Claude API error:', error);
+                throw error;
+            }
+        }
+
+        function formatUserMessage(action, diceRoll = null) {
+            let message = action + '\n\n[CURRENT STATE]\n';
+            message += `Location: ${gameState.currentLocation.planetName} (${gameState.currentLocation.planetType})\n`;
+            message += `Ship Health: ${gameState.ship.health}%\n`;
+            message += `Fuel: ${gameState.ship.fuel} units\n`;
+            message += `Inventory: ${formatInventoryText(gameState.inventory)}\n`;
+            message += `Distance from Center: ${gameState.currentLocation.distanceFromCenter} LY`;
+
+            if (diceRoll) {
+                message += '\n\n[DICE ROLL RESULT]\n';
+                message += `Roll: ${diceRoll.roll}`;
+                if (diceRoll.bonuses !== 0) {
+                    message += ` + ${diceRoll.bonuses}`;
+                }
+                message += ` = ${diceRoll.total} vs DC ${diceRoll.dc}\n`;
+                message += `Result: ${diceRoll.success ? 'SUCCESS' : 'FAILURE'}`;
+                if (diceRoll.criticalSuccess) {
+                    message += ' (Critical Success!)';
+                }
+                if (diceRoll.criticalFailure) {
+                    message += ' (Critical Failure!)';
+                }
+            }
+
+            return message;
+        }
+
+        function formatInventoryText(inventory) {
+            const items = Object.entries(inventory)
+                .filter(([key, val]) => val > 0)
+                .map(([key, val]) => `${capitalize(key)} x${val}`)
+                .join(', ');
+            return items || 'Empty';
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // ===== RESPONSE PARSER =====
+        function parseGameMasterResponse(text) {
+            const parsed = {
+                narrative: '',
+                stateUpdate: null,
+                options: []
+            };
+
+            // Extract state update
+            const stateMatch = text.match(/\[STATE UPDATE\]([\s\S]*?)(?:\[OPTIONS\]|$)/i);
+            if (stateMatch) {
+                parsed.stateUpdate = parseStateUpdate(stateMatch[1].trim());
+                // Remove state update from text
+                text = text.replace(/\[STATE UPDATE\][\s\S]*?(?=\[OPTIONS\]|$)/i, '');
+            }
+
+            // Extract options
+            const optionsMatch = text.match(/\[OPTIONS\]([\s\S]*?)$/i);
+            if (optionsMatch) {
+                parsed.options = parseOptions(optionsMatch[1].trim());
+                // Remove options from text
+                text = text.replace(/\[OPTIONS\][\s\S]*$/, '');
+            }
+
+            // Everything else is narrative
+            parsed.narrative = text.trim();
+
+            return parsed;
+        }
+
+        function parseStateUpdate(updateText) {
+            const updates = {};
+            const parts = updateText.split('|');
+
+            parts.forEach(part => {
+                const trimmed = part.trim();
+
+                if (trimmed.match(/ship/i)) {
+                    const match = trimmed.match(/([+-]?\d+)%?/);
+                    if (match) updates.ship = parseInt(match[1]);
+                }
+
+                if (trimmed.match(/fuel/i)) {
+                    const match = trimmed.match(/([+-]?\d+)/);
+                    if (match) updates.fuel = parseInt(match[1]);
+                }
+
+                if (trimmed.match(/inventory/i)) {
+                    updates.inventory = parseInventoryChange(trimmed);
+                }
+            });
+
+            return updates;
+        }
+
+        function parseInventoryChange(text) {
+            const changes = {};
+            // Match patterns like "+Iron x5" or "-Carbon x3"
+            const regex = /([+-])(\w+)\s*x(\d+)/gi;
+            let match;
+
+            while ((match = regex.exec(text)) !== null) {
+                const sign = match[1];
+                const item = match[2].toLowerCase();
+                const amount = parseInt(match[3]);
+                changes[item] = sign === '+' ? amount : -amount;
+            }
+
+            return changes;
+        }
+
+        function parseOptions(optionsText) {
+            const options = [];
+            const lines = optionsText.split('\n');
+
+            lines.forEach(line => {
+                // Match patterns like "1. Action text (Difficulty)"
+                const match = line.match(/^\d+\.\s*(.+?)\s*\((\w+(?:\s+\w+)?)\)\s*$/i);
+                if (match) {
+                    options.push({
+                        text: match[1].trim(),
+                        difficulty: match[2].trim()
+                    });
+                }
+            });
+
+            return options;
+        }
+
+        function pruneConversationHistory() {
+            if (gameState.conversationHistory.length > GAME_CONSTANTS.maxConversationHistory) {
+                gameState.conversationHistory = gameState.conversationHistory.slice(-GAME_CONSTANTS.maxConversationHistory);
+            }
+        }
+
+        // ===== STATE UPDATE LOGIC =====
+        function applyStateUpdates(updates) {
+            if (!updates) return;
+
+            if (updates.ship !== undefined) {
+                gameState.ship.health = Math.max(0, Math.min(100, gameState.ship.health + updates.ship));
+            }
+
+            if (updates.fuel !== undefined) {
+                gameState.ship.fuel = Math.max(0, gameState.ship.fuel + updates.fuel);
+            }
+
+            if (updates.inventory) {
+                Object.entries(updates.inventory).forEach(([item, amount]) => {
+                    // Initialize item if it doesn't exist
+                    if (gameState.inventory[item] === undefined) {
+                        gameState.inventory[item] = 0;
+                    }
+
+                    gameState.inventory[item] = Math.max(0, gameState.inventory[item] + amount);
+
+                    if (amount > 0) {
+                        gameState.stats.resourcesGathered += amount;
+                    }
+                });
+            }
+        }
+
+        // ===== GAME LOOP =====
+        async function processPlayerAction(actionText, difficulty = null) {
+            if (isProcessingAction) return;
+
+            try {
+                isProcessingAction = true;
+
+                // Scroll to top immediately
+                window.scrollTo(0, 0);
+
+                // Clear previous narrative
+                const narrativeEl = document.getElementById('narrative');
+                narrativeEl.innerHTML = '';
+
+                disableActions();
+                hideError();
+
+                // Perform dice roll if difficulty specified
+                let diceRoll = null;
+                if (difficulty) {
+                    diceRoll = performSkillCheck(difficulty);
+                    displayDiceRoll(diceRoll);
+                }
+
+                // Show loading message in narrative area
+                showLoading('Processing your action...');
+
+                // Format message with current state
+                const userMessage = formatUserMessage(actionText, diceRoll);
+
+                // Call Claude API
+                const response = await callClaudeAPI(userMessage);
+
+                // Update conversation history
+                gameState.conversationHistory.push(
+                    { role: 'user', content: userMessage },
+                    { role: 'assistant', content: response }
+                );
+                pruneConversationHistory();
+
+                // Parse response
+                const parsed = parseGameMasterResponse(response);
+
+                // Apply state updates
+                applyStateUpdates(parsed.stateUpdate);
+
+                // Update current game state
+                gameState.currentNarrative = parsed.narrative;
+                gameState.currentOptions = parsed.options;
+
+                // Add to action history
+                gameState.actionHistory.unshift({
+                    timestamp: Date.now(),
+                    action: actionText,
+                    result: parsed.narrative.substring(0, 100) + '...'
+                });
+                if (gameState.actionHistory.length > GAME_CONSTANTS.maxActionHistory) {
+                    gameState.actionHistory.pop();
+                }
+
+                // Update UI
+                updateGameUI();
+
+                // Schedule auto-save
+                scheduleAutoSave();
+
+            } catch (error) {
+                showError(error.message);
+                if (error.message.includes('API key')) {
+                    setTimeout(() => showApiKeyModal(), 2000);
+                }
+            } finally {
+                hideLoading();
+                enableActions();
+                isProcessingAction = false;
+            }
+        }
+
+        // ===== UI UPDATE FUNCTIONS =====
+        function updateGameUI() {
+            if (!gameState) return;
+
+            // Hide dice roll from previous action
+            document.getElementById('dice-result').style.display = 'none';
+
+            // Update narrative (parse markdown to HTML)
+            const narrativeEl = document.getElementById('narrative');
+            narrativeEl.innerHTML = marked.parse(gameState.currentNarrative);
+
+            // Update options
+            const optionsEl = document.getElementById('options');
+            optionsEl.innerHTML = '';
+
+            gameState.currentOptions.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'action-btn';
+                button.setAttribute('role', 'menuitem');
+
+                const text = document.createElement('span');
+                text.textContent = `${index + 1}. ${option.text}`;
+
+                const badge = document.createElement('span');
+                badge.className = 'difficulty-badge';
+                badge.textContent = `(${option.difficulty})`;
+
+                button.appendChild(text);
+                button.appendChild(badge);
+
+                button.addEventListener('click', () => {
+                    processPlayerAction(option.text, option.difficulty);
+                });
+
+                optionsEl.appendChild(button);
+            });
+
+            // Update status bar
+            document.getElementById('ship-health').textContent = gameState.ship.health;
+            document.getElementById('fuel').textContent = gameState.ship.fuel;
+            document.getElementById('location-display').textContent =
+                `Location: ${gameState.currentLocation.planetName} (${gameState.currentLocation.planetType})`;
+
+            // Update inventory
+            updateInventoryDisplay();
+
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        function updateInventoryDisplay() {
+            const itemsEl = document.getElementById('inventory-items');
+            const items = Object.entries(gameState.inventory)
+                .filter(([key, val]) => val > 0)
+                .map(([key, val]) => `<div class="inventory-item">${capitalize(key)}: ${val}</div>`)
+                .join('');
+
+            itemsEl.innerHTML = items || '<div class="inventory-item">Empty</div>';
+        }
+
+        // ===== UI STATE MANAGEMENT =====
+        function showLoading(message) {
+            // Show loading message in narrative area for better UX
+            const narrativeEl = document.getElementById('narrative');
+            if (narrativeEl) {
+                narrativeEl.innerHTML = `<p style="text-align: center; color: var(--accent-color); font-style: italic; padding: 60px 20px;">${message}</p>`;
+            }
+        }
+
+        function hideLoading() {
+            // Loading will be replaced by narrative content
+            // No need to clear anything here
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.classList.add('visible');
+        }
+
+        function hideError() {
+            const errorEl = document.getElementById('error-message');
+            errorEl.classList.remove('visible');
+        }
+
+        function showSuccessMessage(message) {
+            // Use the error message div but style it for success
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.style.background = 'var(--success-color)';
+            errorEl.classList.add('visible');
+
+            // Auto-hide after 2 seconds
+            setTimeout(() => {
+                errorEl.classList.remove('visible');
+                // Reset to error styling
+                errorEl.style.background = 'var(--error-color)';
+            }, 2000);
+        }
+
+        function disableActions() {
+            document.querySelectorAll('.action-btn, #custom-action-submit').forEach(btn => {
+                btn.disabled = true;
+            });
+        }
+
+        function enableActions() {
+            document.querySelectorAll('.action-btn, #custom-action-submit').forEach(btn => {
+                btn.disabled = false;
+            });
+        }
+
+        // ===== MODAL FUNCTIONS =====
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('visible');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('visible');
+        }
+
+        function showApiKeyModal() {
+            showModal('api-key-modal');
+            document.getElementById('api-key-input').focus();
+        }
+
+        function showSettingsModal() {
+            const settings = getSettings();
+            document.getElementById('font-size-select').value = settings.fontSize;
+            document.getElementById('auto-save-toggle').checked = settings.autoSave;
+            showModal('settings-modal');
+        }
+
+        function showSaveModal() {
+            const slots = listSaveSlots().slice(1); // Skip auto-save slot 0
+            const slotsEl = document.getElementById('save-slots');
+
+            slotsEl.innerHTML = slots.map(slot => {
+                if (slot.empty) {
+                    return `
+                        <div class="save-slot empty" data-slot="${slot.slot}">
+                            <div class="save-slot-header">Slot ${slot.slot} - Empty</div>
+                        </div>
+                    `;
+                } else {
+                    const date = new Date(slot.timestamp).toLocaleString();
+                    return `
+                        <div class="save-slot" data-slot="${slot.slot}">
+                            <div class="save-slot-header">Slot ${slot.slot}</div>
+                            <div class="save-slot-info">${date}</div>
+                            <div class="save-slot-info">${slot.thumbnail.location} - ${slot.thumbnail.stats}</div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            // Add click handlers
+            document.querySelectorAll('#save-slots .save-slot').forEach(el => {
+                el.addEventListener('click', () => {
+                    const slot = parseInt(el.dataset.slot);
+                    if (!el.classList.contains('empty')) {
+                        if (!confirm('Overwrite this save?')) return;
+                    }
+                    if (saveGame(slot)) {
+                        hideModal('save-modal');
+                        hideError();
+                        // Show brief success message without disrupting narrative
+                        showSuccessMessage('Game saved!');
+                    }
+                });
+            });
+
+            showModal('save-modal');
+        }
+
+        function showLoadModal() {
+            const slots = listSaveSlots();
+            const slotsEl = document.getElementById('load-slots');
+
+            slotsEl.innerHTML = slots.map(slot => {
+                if (slot.empty) {
+                    return `
+                        <div class="save-slot empty">
+                            <div class="save-slot-header">${slot.slot === 0 ? 'Auto-save' : 'Slot ' + slot.slot} - Empty</div>
+                        </div>
+                    `;
+                } else {
+                    const date = new Date(slot.timestamp).toLocaleString();
+                    return `
+                        <div class="save-slot" data-slot="${slot.slot}">
+                            <div class="save-slot-header">${slot.slot === 0 ? 'Auto-save' : 'Slot ' + slot.slot}</div>
+                            <div class="save-slot-info">${date}</div>
+                            <div class="save-slot-info">${slot.thumbnail.location} - ${slot.thumbnail.stats}</div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            // Add click handlers (only for non-empty slots)
+            document.querySelectorAll('#load-slots .save-slot:not(.empty)').forEach(el => {
+                el.addEventListener('click', () => {
+                    const slot = parseInt(el.dataset.slot);
+                    if (loadGame(slot)) {
+                        hideModal('load-modal');
+                        hideDiceRoll();
+                    }
+                });
+            });
+
+            showModal('load-modal');
+        }
+
+        function hideDiceRoll() {
+            document.getElementById('dice-result').style.display = 'none';
+        }
+
+        // ===== GAME INITIALIZATION =====
+        async function startNewGame() {
+            gameState = createInitialGameState();
+            hideDiceRoll();
+            hideError();
+
+            try {
+                showLoading('Initializing your adventure...');
+
+                // Call Claude to generate starting scenario
+                const response = await callClaudeAPI('Begin the game. Describe where the player wakes up on a strange planet with their ship crashed nearby.');
+
+                gameState.conversationHistory.push({
+                    role: 'assistant',
+                    content: response
+                });
+
+                const parsed = parseGameMasterResponse(response);
+                applyStateUpdates(parsed.stateUpdate);
+
+                gameState.currentNarrative = parsed.narrative;
+                gameState.currentOptions = parsed.options;
+
+                updateGameUI();
+                autoSave();
+
+            } catch (error) {
+                showError('Failed to start game: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function initializeGame() {
+            // Apply settings
+            const settings = getSettings();
+            applySettings(settings);
+
+            // Check for API key
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                showApiKeyModal();
+                return;
+            }
+
+            // Check for auto-save
+            const autoSaveExists = localStorage.getItem(STORAGE_KEYS.autoSave);
+            if (autoSaveExists) {
+                showModal('continue-modal');
+            } else {
+                startNewGame();
+            }
+        }
+
+        // ===== EVENT HANDLERS =====
+        document.addEventListener('DOMContentLoaded', () => {
+            // Settings button
+            document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
+
+            // API key modal
+            document.getElementById('api-key-submit').addEventListener('click', () => {
+                const apiKey = document.getElementById('api-key-input').value.trim();
+                if (!apiKey) {
+                    alert('Please enter an API key');
+                    return;
+                }
+                saveApiKey(apiKey);
+                hideModal('api-key-modal');
+                startNewGame();
+            });
+
+            // Settings modal
+            document.getElementById('settings-close').addEventListener('click', () => {
+                hideModal('settings-modal');
+            });
+
+            document.getElementById('font-size-select').addEventListener('change', (e) => {
+                const settings = getSettings();
+                settings.fontSize = parseInt(e.target.value);
+                saveSettings(settings);
+            });
+
+            document.getElementById('auto-save-toggle').addEventListener('change', (e) => {
+                const settings = getSettings();
+                settings.autoSave = e.target.checked;
+                saveSettings(settings);
+            });
+
+            document.getElementById('change-api-key-btn').addEventListener('click', () => {
+                hideModal('settings-modal');
+                document.getElementById('api-key-input').value = '';
+                showApiKeyModal();
+            });
+
+            // Save/Load modals
+            document.getElementById('save-btn').addEventListener('click', showSaveModal);
+            document.getElementById('save-cancel').addEventListener('click', () => hideModal('save-modal'));
+
+            document.getElementById('load-btn').addEventListener('click', showLoadModal);
+            document.getElementById('load-cancel').addEventListener('click', () => hideModal('load-modal'));
+
+            // New game
+            document.getElementById('new-game-btn').addEventListener('click', () => {
+                if (confirm('Start a new game? Current progress will be lost unless saved.')) {
+                    startNewGame();
+                }
+            });
+
+            // Continue modal
+            document.getElementById('continue-btn').addEventListener('click', () => {
+                hideModal('continue-modal');
+                if (loadGame(0)) {
+                    hideDiceRoll();
+                }
+            });
+
+            document.getElementById('start-new-btn').addEventListener('click', () => {
+                hideModal('continue-modal');
+                startNewGame();
+            });
+
+            // Custom action form
+            document.getElementById('custom-action-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById('custom-action-input');
+                const action = input.value.trim();
+                if (action) {
+                    processPlayerAction(action);
+                    input.value = '';
+                }
+            });
+
+            // Inventory toggle
+            document.getElementById('inventory-header').addEventListener('click', () => {
+                const items = document.getElementById('inventory-items');
+                const toggle = document.getElementById('inventory-toggle');
+                const header = document.getElementById('inventory-header');
+
+                if (items.classList.contains('open')) {
+                    items.classList.remove('open');
+                    items.setAttribute('aria-hidden', 'true');
+                    toggle.textContent = '[+]';
+                    header.setAttribute('aria-expanded', 'false');
+                } else {
+                    items.classList.add('open');
+                    items.setAttribute('aria-hidden', 'false');
+                    toggle.textContent = '[-]';
+                    header.setAttribute('aria-expanded', 'true');
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Don't trigger if typing in input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                // Number keys for options
+                const num = parseInt(e.key);
+                if (num >= 1 && num <= 9) {
+                    const buttons = document.querySelectorAll('#options .action-btn');
+                    if (buttons[num - 1]) {
+                        buttons[num - 1].click();
+                    }
+                }
+            });
+
+            // Auto-save on page unload
+            window.addEventListener('beforeunload', () => {
+                if (gameState) {
+                    autoSave();
+                }
+            });
+
+            // Initialize game
+            initializeGame();
+        });
+    </script>
+</body>
+</html>
