@@ -595,6 +595,13 @@
                 <option value="24">Extra Large (24px)</option>
             </select>
 
+            <label for="narrative-length-select">Narrative Length:</label>
+            <select id="narrative-length-select">
+                <option value="brief">Brief (1-2 paragraphs)</option>
+                <option value="standard" selected>Standard (2-3 paragraphs)</option>
+                <option value="detailed">Detailed (3-5 paragraphs)</option>
+            </select>
+
             <label for="auto-save-toggle">
                 <input type="checkbox" id="auto-save-toggle" checked> Enable auto-save
             </label>
@@ -690,7 +697,17 @@
         };
 
         // ===== SYSTEM PROMPT =====
-        const SYSTEM_PROMPT = `You are the Game Master for NMS.TXT, a text-based space exploration game inspired by No Man's Sky.
+        function getSystemPrompt() {
+            const settings = getSettings();
+            const narrativeInstructions = {
+                brief: '1-2 paragraphs, brief and direct',
+                standard: '2-3 paragraphs, vivid but concise',
+                detailed: '3-5 paragraphs, rich and detailed'
+            };
+
+            const instruction = narrativeInstructions[settings.narrativeLength] || narrativeInstructions.standard;
+
+            return `You are the Game Master for NMS.TXT, a text-based space exploration game inspired by No Man's Sky.
 
 CORE RULES:
 1. Players CANNOT skip progression - they must overcome challenges
@@ -708,7 +725,7 @@ GAME MECHANICS YOU MUST ENFORCE:
 - Hazards: toxic atmosphere, extreme heat/cold, radiation, hostile fauna
 
 RESPONSE FORMAT:
-1. Narrative description (2-3 paragraphs, vivid but concise)
+1. Narrative description (${instruction})
 2. If dice roll result was provided, narrate the outcome (success/failure/critical)
 3. [STATE UPDATE] section with changes (if any)
    Format: "Ship: +5% | Fuel: +10 | Inventory: +Iron x5"
@@ -721,6 +738,7 @@ PACING: Progressive difficulty, early game easier, late game challenging
 VARIETY: Mix combat, exploration, puzzles, diplomacy, survival
 
 Current game state will be provided in each message.`;
+        }
 
         // ===== STATE VARIABLES =====
         let gameState = null;
@@ -799,7 +817,8 @@ Current game state will be provided in each message.`;
         function getSettings() {
             const defaults = {
                 fontSize: 20,
-                autoSave: true
+                autoSave: true,
+                narrativeLength: 'standard'
             };
 
             const stored = localStorage.getItem(STORAGE_KEYS.settings);
@@ -987,7 +1006,7 @@ Current game state will be provided in each message.`;
                         model: CLAUDE_CONFIG.model,
                         max_tokens: CLAUDE_CONFIG.maxTokens,
                         temperature: CLAUDE_CONFIG.temperature,
-                        system: SYSTEM_PROMPT,
+                        system: getSystemPrompt(),
                         messages: messages,
                         apiVersion: CLAUDE_CONFIG.apiVersion
                     })
@@ -1106,8 +1125,8 @@ Current game state will be provided in each message.`;
 
         function parseInventoryChange(text) {
             const changes = {};
-            // Match patterns like "+Iron x5" or "-Carbon x3"
-            const regex = /([+-])(\w+)\s*x(\d+)/gi;
+            // Match patterns like "+Iron x5", "+ Iron x5", or "-Carbon x3"
+            const regex = /([+-])\s*(\w+)\s*x\s*(\d+)/gi;
             let match;
 
             while ((match = regex.exec(text)) !== null) {
@@ -1380,6 +1399,7 @@ Current game state will be provided in each message.`;
             const settings = getSettings();
             document.getElementById('font-size-select').value = settings.fontSize;
             document.getElementById('auto-save-toggle').checked = settings.autoSave;
+            document.getElementById('narrative-length-select').value = settings.narrativeLength;
             showModal('settings-modal');
         }
 
@@ -1551,6 +1571,12 @@ Current game state will be provided in each message.`;
             document.getElementById('auto-save-toggle').addEventListener('change', (e) => {
                 const settings = getSettings();
                 settings.autoSave = e.target.checked;
+                saveSettings(settings);
+            });
+
+            document.getElementById('narrative-length-select').addEventListener('change', (e) => {
+                const settings = getSettings();
+                settings.narrativeLength = e.target.value;
                 saveSettings(settings);
             });
 
