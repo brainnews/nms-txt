@@ -700,7 +700,7 @@
         function getSystemPrompt() {
             const settings = getSettings();
             const narrativeInstructions = {
-                brief: '1-2 paragraphs, brief and direct',
+                brief: 'EXACTLY 1-2 SHORT paragraphs maximum. Be extremely concise and direct. Do NOT write more than 2 paragraphs under any circumstances',
                 standard: '2-3 paragraphs, vivid but concise',
                 detailed: '3-5 paragraphs, rich and detailed'
             };
@@ -1054,6 +1054,12 @@ Current game state will be provided in each message.`;
                 if (diceRoll.criticalFailure) {
                     message += ' (Critical Failure!)';
                 }
+            }
+
+            // Add brevity reminder if brief mode is enabled
+            const settings = getSettings();
+            if (settings.narrativeLength === 'brief') {
+                message += '\n\n[REMINDER: Keep response to 1-2 SHORT paragraphs maximum]';
             }
 
             return message;
