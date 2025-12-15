@@ -517,6 +517,12 @@
         <!-- Loading indicator -->
         <div id="loading" role="status" aria-live="polite"></div>
 
+        <!-- Model download progress -->
+        <div id="model-loading" style="display: none; background: var(--accent-color); color: var(--bg-color); padding: 20px; margin: 20px 0; font-family: 'Courier New', monospace;">
+            <div id="model-loading-text">Downloading AI model...</div>
+            <div id="model-loading-progress" style="margin-top: 10px; font-size: 14px;"></div>
+        </div>
+
         <!-- Status bar -->
         <div id="status-bar" role="status">
             <div class="status-item">Ship: <span id="ship-health">0</span>%</div>
@@ -567,8 +573,9 @@
     <div id="api-key-modal" class="modal" role="dialog" aria-labelledby="api-key-title">
         <div class="modal-content">
             <h2 id="api-key-title">Enter Claude API Key</h2>
-            <p>NMS.TXT uses the Claude API to generate your unique space exploration adventure. You'll need a Claude API key to play.</p>
+            <p>You've selected Claude API mode, which provides the best narrative quality. You'll need a Claude API key to play.</p>
             <p><strong>Note:</strong> Your API key is stored locally in your browser and is never sent to any server except Anthropic's API. API usage will be billed to your Anthropic account.</p>
+            <p><em>Alternatively, you can switch to WebLLM mode in Settings for free, offline gameplay (with simpler narratives).</em></p>
             <label for="api-key-input">API Key:</label>
             <input
                 type="password"
@@ -586,6 +593,18 @@
     <div id="settings-modal" class="modal" role="dialog" aria-labelledby="settings-title">
         <div class="modal-content">
             <h2 id="settings-title">Settings</h2>
+
+            <label>AI Model:</label>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: normal;">
+                    <input type="radio" name="ai-model" value="claude" id="model-claude" checked>
+                    Claude API (Best quality, requires API key)
+                </label>
+                <label style="display: block; font-weight: normal;">
+                    <input type="radio" name="ai-model" value="webllm" id="model-webllm">
+                    WebLLM - Phi-3-mini (Free, runs in browser, ~2GB download)
+                </label>
+            </div>
 
             <label for="font-size-select">Font Size:</label>
             <select id="font-size-select">
@@ -727,14 +746,27 @@ GAME MECHANICS YOU MUST ENFORCE:
 - Alien encounters: varied species with unique languages/behaviors
 - Hazards: toxic atmosphere, extreme heat/cold, radiation, hostile fauna
 
-RESPONSE FORMAT:
+RESPONSE FORMAT - YOU MUST FOLLOW THIS EXACTLY:
 1. Narrative description (${instruction})
 2. If dice roll result was provided, narrate the outcome (success/failure/critical)
 3. [STATE UPDATE] section with changes (if any)
    Format: "Ship: +5% | Fuel: +10 | Inventory: +Iron x5"
 4. [OPTIONS] section with 3-4 numbered choices
    Format: "1. [Action text] (Difficulty)"
-   Example: "1. Explore the crash site (Easy)"
+
+EXAMPLE RESPONSE:
+You wake up disoriented, your ship's emergency systems blaring. The crash site is surrounded by strange purple vegetation.
+
+[STATE UPDATE]
+Ship: +0% | Fuel: +0 | Inventory: +0
+
+[OPTIONS]
+1. Search the wreckage for salvageable parts (Easy)
+2. Explore the nearby alien structures (Medium)
+3. Attempt to repair the ship's communications array (Hard)
+4. Hunt for food and water (Easy)
+
+CRITICAL: Always end with [OPTIONS] section. Always include difficulty in parentheses.
 
 TONE: Atmospheric, mysterious, sometimes humorous, always engaging
 PACING: Progressive difficulty, early game easier, late game challenging
@@ -821,7 +853,8 @@ Current game state will be provided in each message.`;
             const defaults = {
                 fontSize: 20,
                 autoSave: true,
-                narrativeLength: 'standard'
+                narrativeLength: 'standard',
+                aiModel: 'claude' // 'claude' or 'webllm'
             };
 
             const stored = localStorage.getItem(STORAGE_KEYS.settings);
@@ -841,6 +874,110 @@ Current game state will be provided in each message.`;
 
         function applySettings(settings) {
             document.body.style.fontSize = settings.fontSize + 'px';
+        }
+
+        // ===== WEBLLM INTEGRATION =====
+        let webllmEngine = null;
+        let webllmModule = null;
+        let isWebLLMInitialized = false;
+
+        async function initializeWebLLM() {
+            if (isWebLLMInitialized && webllmEngine) {
+                return true;
+            }
+
+            try {
+                console.log('🤖 Initializing WebLLM...');
+                showModelLoading('Loading WebLLM library...');
+
+                // Dynamically import WebLLM module
+                if (!webllmModule) {
+                    console.log('📦 Importing WebLLM module from CDN...');
+                    webllmModule = await import('https://esm.run/@mlc-ai/web-llm');
+                    console.log('✅ WebLLM module loaded:', Object.keys(webllmModule));
+                }
+
+                showModelLoading('Initializing AI model...');
+
+                const initProgressCallback = (progress) => {
+                    console.log('📥 Model loading progress:', progress);
+                    if (progress.text) {
+                        updateModelLoadingProgress(progress.text);
+                    }
+                };
+
+                // Create engine with Phi-3-mini model
+                console.log('🔧 Creating MLC Engine...');
+                webllmEngine = await webllmModule.CreateMLCEngine(
+                    "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+                    {
+                        initProgressCallback: initProgressCallback,
+                        logLevel: "INFO"
+                    }
+                );
+
+                isWebLLMInitialized = true;
+                hideModelLoading();
+                console.log('✅ WebLLM initialized successfully');
+                return true;
+
+            } catch (error) {
+                console.error('❌ WebLLM initialization failed:', error);
+                console.error('Error stack:', error.stack);
+                hideModelLoading();
+                showError('Failed to initialize WebLLM: ' + error.message + '. Check console for details.');
+                return false;
+            }
+        }
+
+        async function callWebLLM(messages, systemPrompt) {
+            if (!isWebLLMInitialized) {
+                const success = await initializeWebLLM();
+                if (!success) {
+                    throw new Error('WebLLM initialization failed');
+                }
+            }
+
+            try {
+                console.log('🤖 Calling WebLLM...');
+
+                // Format messages for WebLLM (it expects standard chat format)
+                const formattedMessages = [
+                    { role: 'system', content: systemPrompt },
+                    ...messages
+                ];
+
+                const completion = await webllmEngine.chat.completions.create({
+                    messages: formattedMessages,
+                    temperature: 0.8,
+                    max_tokens: 2048,
+                });
+
+                const response = completion.choices[0].message.content;
+                console.log('✅ WebLLM response received');
+                return response;
+
+            } catch (error) {
+                console.error('❌ WebLLM call failed:', error);
+                throw error;
+            }
+        }
+
+        function showModelLoading(text) {
+            const el = document.getElementById('model-loading');
+            const textEl = document.getElementById('model-loading-text');
+            textEl.textContent = text;
+            el.style.display = 'block';
+        }
+
+        function updateModelLoadingProgress(progressText) {
+            const progressEl = document.getElementById('model-loading-progress');
+            progressEl.textContent = progressText;
+        }
+
+        function hideModelLoading() {
+            const el = document.getElementById('model-loading');
+            el.style.display = 'none';
         }
 
         // ===== SAVE/LOAD FUNCTIONS =====
@@ -983,8 +1120,19 @@ Current game state will be provided in each message.`;
             diceEl.style.display = 'block';
         }
 
-        // ===== CLAUDE API INTEGRATION =====
-        async function callClaudeAPI(userMessage) {
+        // ===== AI API INTEGRATION =====
+        async function callAI(userMessage) {
+            const settings = getSettings();
+
+            // Route to appropriate AI backend
+            if (settings.aiModel === 'webllm') {
+                return await callWebLLMBackend(userMessage);
+            } else {
+                return await callClaudeBackend(userMessage);
+            }
+        }
+
+        async function callClaudeBackend(userMessage) {
             const apiKey = getApiKey();
             if (!apiKey) {
                 throw new Error('API key required');
@@ -1030,6 +1178,18 @@ Current game state will be provided in each message.`;
                 console.error('Claude API error:', error);
                 throw error;
             }
+        }
+
+        async function callWebLLMBackend(userMessage) {
+            const messages = [
+                ...gameState.conversationHistory,
+                {
+                    role: 'user',
+                    content: userMessage
+                }
+            ];
+
+            return await callWebLLM(messages, getSystemPrompt());
         }
 
         function formatUserMessage(action, diceRoll = null) {
@@ -1079,6 +1239,10 @@ Current game state will be provided in each message.`;
 
         // ===== RESPONSE PARSER =====
         function parseGameMasterResponse(text) {
+            console.log('🎮 Parsing AI response...');
+            console.log('Raw response:', text);
+
+            const originalText = text;
             const parsed = {
                 narrative: '',
                 stateUpdate: null,
@@ -1088,21 +1252,61 @@ Current game state will be provided in each message.`;
             // Extract state update
             const stateMatch = text.match(/\[STATE UPDATE\]([\s\S]*?)(?:\[OPTIONS\]|$)/i);
             if (stateMatch) {
+                console.log('📋 Found STATE UPDATE section:', stateMatch[1].trim());
                 parsed.stateUpdate = parseStateUpdate(stateMatch[1].trim());
                 // Remove state update from text
                 text = text.replace(/\[STATE UPDATE\][\s\S]*?(?=\[OPTIONS\]|$)/i, '');
+            } else {
+                console.log('⚠️ No STATE UPDATE section found');
             }
 
             // Extract options
             const optionsMatch = text.match(/\[OPTIONS\]([\s\S]*?)$/i);
             if (optionsMatch) {
+                console.log('📋 Found OPTIONS section');
                 parsed.options = parseOptions(optionsMatch[1].trim());
                 // Remove options from text
                 text = text.replace(/\[OPTIONS\][\s\S]*$/, '');
+            } else {
+                console.log('⚠️ No OPTIONS section found, trying fallback parser...');
+            }
+
+            // Fallback: if no options found, try to extract numbered lists from anywhere
+            if (parsed.options.length === 0) {
+                console.log('🔍 Using fallback parser to find options...');
+                parsed.options = parseOptionsFromAnywhere(originalText);
+
+                // Remove the found options from the narrative
+                if (parsed.options.length > 0) {
+                    console.log(`✅ Fallback parser found ${parsed.options.length} options`);
+                    // Remove lines that match our options from the narrative
+                    const lines = text.split('\n');
+                    const filteredLines = lines.filter(line => {
+                        const isOptionLine = /^\s*\d+\.\s*.+/.test(line);
+                        return !isOptionLine;
+                    });
+                    text = filteredLines.join('\n');
+                }
             }
 
             // Everything else is narrative
             parsed.narrative = text.trim();
+
+            console.log('✅ Parse complete:', {
+                hasNarrative: !!parsed.narrative,
+                hasStateUpdate: !!parsed.stateUpdate,
+                optionCount: parsed.options.length
+            });
+
+            // If still no options, provide default ones
+            if (parsed.options.length === 0) {
+                console.warn('⚠️ No options found at all, providing defaults');
+                parsed.options = [
+                    { text: 'Continue exploring', difficulty: 'Easy' },
+                    { text: 'Look around carefully', difficulty: 'Medium' },
+                    { text: 'Try something risky', difficulty: 'Hard' }
+                ];
+            }
 
             return parsed;
         }
@@ -1134,17 +1338,22 @@ Current game state will be provided in each message.`;
 
         function parseInventoryChange(text) {
             const changes = {};
-            // Match patterns like "+Iron x5", "+ Iron x5", or "-Carbon x3"
-            const regex = /([+-])\s*(\w+)\s*x\s*(\d+)/gi;
+            console.log('🔍 Parsing inventory from text:', text);
+
+            // Match patterns like "+Iron x5", "Iron x5", or "-Carbon x3"
+            // Made +/- sign optional, defaults to + if not present
+            const regex = /([+-])?\s*(\w+)\s*x\s*(\d+)/gi;
             let match;
 
             while ((match = regex.exec(text)) !== null) {
-                const sign = match[1];
+                const sign = match[1] || '+'; // Default to + if no sign
                 const item = match[2].toLowerCase();
                 const amount = parseInt(match[3]);
                 changes[item] = sign === '+' ? amount : -amount;
+                console.log(`  ✓ Found: ${item} ${sign}${amount}`);
             }
 
+            console.log('📦 Inventory changes:', changes);
             return changes;
         }
 
@@ -1166,6 +1375,47 @@ Current game state will be provided in each message.`;
             return options;
         }
 
+        function parseOptionsFromAnywhere(text) {
+            // Fallback parser: extract numbered options from anywhere in the text
+            const options = [];
+            const lines = text.split('\n');
+
+            lines.forEach(line => {
+                // Match numbered lines with optional difficulty
+                // Patterns: "1. Action text (Difficulty)" or "1. Action text"
+                const matchWithDiff = line.match(/^\s*(\d+)\.\s*(.+?)\s*\((\w+(?:\s+\w+)?)\)\s*$/i);
+                const matchNoDiff = line.match(/^\s*(\d+)\.\s*(.+?)\s*$/i);
+
+                if (matchWithDiff) {
+                    options.push({
+                        text: matchWithDiff[2].trim(),
+                        difficulty: matchWithDiff[3].trim()
+                    });
+                } else if (matchNoDiff && matchNoDiff[2].trim().length > 5) {
+                    // No difficulty specified, infer from keywords or default to Medium
+                    const actionText = matchNoDiff[2].trim();
+                    let difficulty = 'Medium'; // default
+
+                    // Infer difficulty from keywords
+                    const lowerText = actionText.toLowerCase();
+                    if (lowerText.includes('search') || lowerText.includes('look') || lowerText.includes('gather') || lowerText.includes('collect')) {
+                        difficulty = 'Easy';
+                    } else if (lowerText.includes('explore') || lowerText.includes('investigate') || lowerText.includes('examine')) {
+                        difficulty = 'Medium';
+                    } else if (lowerText.includes('repair') || lowerText.includes('climb') || lowerText.includes('fight') || lowerText.includes('attack')) {
+                        difficulty = 'Hard';
+                    }
+
+                    options.push({
+                        text: actionText,
+                        difficulty: difficulty
+                    });
+                }
+            });
+
+            return options;
+        }
+
         function pruneConversationHistory() {
             if (gameState.conversationHistory.length > GAME_CONSTANTS.maxConversationHistory) {
                 gameState.conversationHistory = gameState.conversationHistory.slice(-GAME_CONSTANTS.maxConversationHistory);
@@ -1174,30 +1424,45 @@ Current game state will be provided in each message.`;
 
         // ===== STATE UPDATE LOGIC =====
         function applyStateUpdates(updates) {
-            if (!updates) return;
+            if (!updates) {
+                console.log('⚠️ No updates to apply');
+                return;
+            }
+
+            console.log('📊 Applying state updates:', updates);
 
             if (updates.ship !== undefined) {
+                const oldHealth = gameState.ship.health;
                 gameState.ship.health = Math.max(0, Math.min(100, gameState.ship.health + updates.ship));
+                console.log(`🚀 Ship health: ${oldHealth}% → ${gameState.ship.health}%`);
             }
 
             if (updates.fuel !== undefined) {
+                const oldFuel = gameState.ship.fuel;
                 gameState.ship.fuel = Math.max(0, gameState.ship.fuel + updates.fuel);
+                console.log(`⛽ Fuel: ${oldFuel} → ${gameState.ship.fuel}`);
             }
 
             if (updates.inventory) {
+                console.log('📦 Processing inventory updates:', updates.inventory);
                 Object.entries(updates.inventory).forEach(([item, amount]) => {
                     // Initialize item if it doesn't exist
                     if (gameState.inventory[item] === undefined) {
+                        console.log(`  🆕 Creating new inventory item: ${item}`);
                         gameState.inventory[item] = 0;
                     }
 
+                    const oldAmount = gameState.inventory[item];
                     gameState.inventory[item] = Math.max(0, gameState.inventory[item] + amount);
+                    console.log(`  📦 ${item}: ${oldAmount} → ${gameState.inventory[item]} (${amount >= 0 ? '+' : ''}${amount})`);
 
                     if (amount > 0) {
                         gameState.stats.resourcesGathered += amount;
                     }
                 });
             }
+
+            console.log('✅ Final inventory state:', gameState.inventory);
         }
 
         // ===== GAME LOOP =====
@@ -1230,8 +1495,8 @@ Current game state will be provided in each message.`;
                 // Format message with current state
                 const userMessage = formatUserMessage(actionText, diceRoll);
 
-                // Call Claude API
-                const response = await callClaudeAPI(userMessage);
+                // Call AI (routes to Claude or WebLLM based on settings)
+                const response = await callAI(userMessage);
 
                 // Update conversation history
                 gameState.conversationHistory.push(
@@ -1329,13 +1594,22 @@ Current game state will be provided in each message.`;
         }
 
         function updateInventoryDisplay() {
+            console.log('🎒 Updating inventory display...');
+            console.log('Current inventory state:', gameState.inventory);
+
             const itemsEl = document.getElementById('inventory-items');
-            const items = Object.entries(gameState.inventory)
-                .filter(([key, val]) => val > 0)
+            const inventoryEntries = Object.entries(gameState.inventory);
+            console.log('Inventory entries:', inventoryEntries);
+
+            const itemsWithQuantity = inventoryEntries.filter(([key, val]) => val > 0);
+            console.log('Items with quantity > 0:', itemsWithQuantity);
+
+            const items = itemsWithQuantity
                 .map(([key, val]) => `<div class="inventory-item">${capitalize(key)}: ${val}</div>`)
                 .join('');
 
             itemsEl.innerHTML = items || '<div class="inventory-item">Empty</div>';
+            console.log('✅ Inventory display updated');
         }
 
         // ===== UI STATE MANAGEMENT =====
@@ -1406,6 +1680,13 @@ Current game state will be provided in each message.`;
 
         function showSettingsModal() {
             const settings = getSettings();
+
+            // Set AI model radio button
+            const modelRadio = document.getElementById('model-' + settings.aiModel);
+            if (modelRadio) {
+                modelRadio.checked = true;
+            }
+
             document.getElementById('font-size-select').value = settings.fontSize;
             document.getElementById('auto-save-toggle').checked = settings.autoSave;
             document.getElementById('narrative-length-select').value = settings.narrativeLength;
@@ -1504,8 +1785,8 @@ Current game state will be provided in each message.`;
             try {
                 showLoading('Initializing your adventure...');
 
-                // Call Claude to generate starting scenario
-                const response = await callClaudeAPI('Begin the game. Describe where the player wakes up on a strange planet with their ship crashed nearby.');
+                // Call AI to generate starting scenario
+                const response = await callAI('Begin the game. Describe where the player wakes up on a strange planet with their ship crashed nearby.');
 
                 gameState.conversationHistory.push({
                     role: 'assistant',
@@ -1533,11 +1814,13 @@ Current game state will be provided in each message.`;
             const settings = getSettings();
             applySettings(settings);
 
-            // Check for API key
-            const apiKey = getApiKey();
-            if (!apiKey) {
-                showApiKeyModal();
-                return;
+            // Check for API key (only required for Claude mode)
+            if (settings.aiModel === 'claude') {
+                const apiKey = getApiKey();
+                if (!apiKey) {
+                    showApiKeyModal();
+                    return;
+                }
             }
 
             // Check for auto-save
@@ -1589,7 +1872,28 @@ Current game state will be provided in each message.`;
                 saveSettings(settings);
             });
 
+            // AI model selection
+            document.querySelectorAll('input[name="ai-model"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const settings = getSettings();
+                    settings.aiModel = e.target.value;
+                    saveSettings(settings);
+
+                    // Show info message about the change
+                    if (e.target.value === 'webllm') {
+                        alert('WebLLM will download ~2GB on first use. The model runs entirely in your browser with no API costs.');
+                    } else {
+                        alert('Switched to Claude API. You will need a valid API key to continue.');
+                    }
+                });
+            });
+
             document.getElementById('change-api-key-btn').addEventListener('click', () => {
+                const settings = getSettings();
+                if (settings.aiModel === 'webllm') {
+                    alert('API key is only needed for Claude API mode. You are currently using WebLLM, which runs entirely in your browser.');
+                    return;
+                }
                 hideModal('settings-modal');
                 document.getElementById('api-key-input').value = '';
                 showApiKeyModal();
