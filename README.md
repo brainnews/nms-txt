@@ -8,19 +8,22 @@ A text-based space exploration game inspired by No Man's Sky, powered by the Cla
 
 ## Features
 
+- 🤖 **Dual AI Modes:** Choose between Claude API (best quality) or WebLLM (free, runs in browser)
 - 🌌 Procedurally generated planets, aliens, and events
 - 🎲 D&D-style dice roll mechanics for actions
 - 📝 Rich markdown-formatted narratives
 - 💾 5 manual save slots + auto-save
 - 📱 Optimized for e-ink devices (Boox Palma) and mobile
 - 🎨 Minimal, high-contrast design for readability
+- 🔒 Privacy-focused: API keys stored locally, WebLLM runs entirely offline
 
 ## Local Development
 
 ### Prerequisites
 
 - Node.js (v14 or higher)
-- Claude API key ([get one here](https://console.anthropic.com/))
+- **Optional:** Claude API key ([get one here](https://console.anthropic.com/)) for best quality narratives
+  - Or use WebLLM mode (free, no API key needed, runs in browser)
 
 ### Setup
 
@@ -71,7 +74,8 @@ See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
 - Vanilla JavaScript (no build process)
 - [marked.js](https://marked.js.org/) for markdown rendering
-- [Claude API](https://www.anthropic.com/api) for AI-powered narrative
+- [Claude API](https://www.anthropic.com/api) for AI-powered narrative (premium mode)
+- [WebLLM](https://github.com/mlc-ai/web-llm) with Phi-3-mini for browser-based AI (free mode)
 - Express.js (local dev server)
 - Cloudflare Pages + Functions (production)
 
