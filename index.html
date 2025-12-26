@@ -255,6 +255,25 @@
             white-space: nowrap;
         }
 
+        /* Skills tooltip */
+        #skills-tooltip {
+            display: none;
+            position: absolute;
+            background: var(--button-bg);
+            color: var(--button-text);
+            padding: 15px 20px;
+            border: 2px solid var(--text-color);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            z-index: 100;
+            max-width: 300px;
+            line-height: 1.6;
+        }
+
+        #skills-tooltip.visible {
+            display: block;
+        }
+
         /* Inventory panel */
         #inventory-panel {
             border: 1px solid var(--border-color);
@@ -340,8 +359,9 @@
 
         .modal.visible {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
+            padding-top: 40px;
         }
 
         .modal-content {
@@ -350,6 +370,8 @@
             padding: 40px;
             max-width: 600px;
             width: 100%;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
         }
 
         .modal-content h2 {
@@ -362,7 +384,7 @@
             line-height: 1.6;
         }
 
-        .modal-content input,
+        .modal-content input[type="password"],
         .modal-content select {
             width: 100%;
             padding: 15px;
@@ -377,7 +399,28 @@
         .modal-content label {
             display: block;
             margin-bottom: 10px;
-            font-weight: bold;
+        }
+
+        /* Checkbox labels - display as row with checkbox on right */
+        .modal-content label[for="auto-save-toggle"] {
+            display: flex;
+            flex-direction: row-reverse;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: normal;
+            cursor: pointer;
+            padding: 15px 0;
+        }
+
+        .modal-content input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        /* Radio button styling */
+        .modal-content input[type="radio"] {
+            margin: 0;
+            margin-right: 10px;
         }
 
         .modal-buttons {
@@ -432,6 +475,32 @@
         .save-slot-info {
             font-size: 16px;
             color: var(--accent-color);
+        }
+
+        /* Skill point slider */
+        #points-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 10px;
+            background: var(--border-color);
+            outline: none;
+        }
+
+        #points-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 30px;
+            height: 30px;
+            background: var(--button-bg);
+            cursor: pointer;
+        }
+
+        #points-slider::-moz-range-thumb {
+            width: 30px;
+            height: 30px;
+            background: var(--button-bg);
+            cursor: pointer;
+            border: none;
         }
 
         /* Game menu buttons */
@@ -528,7 +597,11 @@
             <div class="status-item">Ship: <span id="ship-health">0</span>%</div>
             <div class="status-item">Fuel: <span id="fuel">0</span></div>
             <div class="status-item" id="location-display">Location: Unknown</div>
+            <div class="status-item" id="skills-display" style="cursor: pointer; text-decoration: underline;">Skills ▼</div>
         </div>
+
+        <!-- Skills tooltip -->
+        <div id="skills-tooltip" role="tooltip"></div>
 
         <!-- Inventory panel -->
         <div id="inventory-panel">
@@ -596,13 +669,23 @@
 
             <label>AI Model:</label>
             <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 10px; font-weight: normal;">
-                    <input type="radio" name="ai-model" value="claude" id="model-claude" checked>
-                    Claude API (Best quality, requires API key)
+                <label style="display: block; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                        <input type="radio" name="ai-model" value="claude" id="model-claude" checked>
+                        Claude API
+                    </div>
+                    <div style="font-size: 16px; font-weight: regular; color: var(--accent-color);">
+                        Best quality, requires API key
+                    </div>
                 </label>
-                <label style="display: block; font-weight: normal;">
-                    <input type="radio" name="ai-model" value="webllm" id="model-webllm">
-                    WebLLM - Phi-3-mini (Free, runs in browser, ~2GB download)
+                <label style="display: block; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center;margin-bottom: 5px;">
+                        <input type="radio" name="ai-model" value="webllm" id="model-webllm">
+                        WebLLM - Llama 3.2
+                    </div>
+                    <div style="font-size: 16px; font-weight: regular; color: var(--accent-color);">
+                        Free, runs in browser, ~2GB download
+                    </div>
                 </label>
             </div>
 
@@ -616,9 +699,8 @@
 
             <label for="narrative-length-select">Narrative Length:</label>
             <select id="narrative-length-select">
-                <option value="brief">Brief (1-2 paragraphs)</option>
-                <option value="standard" selected>Standard (2-3 paragraphs)</option>
-                <option value="detailed">Detailed (3-5 paragraphs)</option>
+                <option value="concise">Concise (~300 chars)</option>
+                <option value="regular" selected>Regular (1-2 paragraphs)</option>
             </select>
 
             <label for="auto-save-toggle">
@@ -675,6 +757,28 @@
         </div>
     </div>
 
+    <!-- Skill Spending Modal -->
+    <div id="skill-spend-modal" class="modal" role="dialog" aria-labelledby="skill-spend-title">
+        <div class="modal-content">
+            <h2 id="skill-spend-title">Use Skill Points?</h2>
+            <p id="skill-spend-text">This action uses <strong id="skill-name-display"></strong>.</p>
+            <p>Available points: <strong id="available-points-display">0</strong></p>
+
+            <label for="points-slider">Spend points for bonus:</label>
+            <input type="range" id="points-slider" min="0" max="5" value="0"
+                   style="width: 100%; margin: 20px 0;">
+
+            <div style="text-align: center; font-size: 24px; margin: 20px 0;">
+                <strong>Bonus: +<span id="bonus-display">0</span></strong>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn" id="spend-and-roll-btn">Spend & Roll</button>
+                <button class="modal-btn secondary" id="skip-spend-btn">Don't Spend (0 bonus)</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ===== MARKDOWN CONFIGURATION =====
         // Configure marked.js for clean, e-ink friendly rendering
@@ -719,12 +823,11 @@
         function getSystemPrompt() {
             const settings = getSettings();
             const narrativeInstructions = {
-                brief: 'EXACTLY 1-2 SHORT paragraphs maximum. Be extremely concise and direct. Do NOT write more than 2 paragraphs under any circumstances',
-                standard: '2-3 paragraphs, vivid but concise',
-                detailed: '3-5 paragraphs, rich and detailed'
+                concise: 'MAXIMUM 300 characters total (approximately 3-4 sentences). Be extremely brief and direct. This is a hard limit.',
+                regular: 'EXACTLY 1-2 paragraphs. Be concise but vivid. Do NOT exceed 2 paragraphs.'
             };
 
-            const instruction = narrativeInstructions[settings.narrativeLength] || narrativeInstructions.standard;
+            const instruction = narrativeInstructions[settings.narrativeLength] || narrativeInstructions.regular;
 
             console.log('📝 Narrative Length Setting:', settings.narrativeLength);
             console.log('📝 Instruction Being Sent:', instruction);
@@ -745,6 +848,12 @@ GAME MECHANICS YOU MUST ENFORCE:
 - Fuel consumption: warp jumps require plutonium
 - Alien encounters: varied species with unique languages/behaviors
 - Hazards: toxic atmosphere, extreme heat/cold, radiation, hostile fauna
+
+SKILL SYSTEM:
+- Players have 4 skills: Survival, Technology, Exploration, Combat
+- Skills provide bonuses to dice rolls (+1 to +10)
+- Skills improve through successful use (shown in roll results)
+- When you see "[Exploration +3]" in dice results, acknowledge the player's growing expertise
 
 RESPONSE FORMAT - YOU MUST FOLLOW THIS EXACTLY:
 1. Narrative description (${instruction})
@@ -779,6 +888,7 @@ Current game state will be provided in each message.`;
         let gameState = null;
         let autoSaveTimeout = null;
         let isProcessingAction = false;
+        let pendingAction = null; // Stores action info while skill spending modal is open
 
         // ===== GAME STATE INITIALIZATION =====
         function createInitialGameState() {
@@ -824,6 +934,13 @@ Current game state will be provided in each message.`;
                     actionsToken: 0
                 },
 
+                skills: {
+                    survival: { level: 1, xp: 0, points: 0 },
+                    technology: { level: 1, xp: 0, points: 0 },
+                    exploration: { level: 2, xp: 0, points: 0 },
+                    combat: { level: 1, xp: 0, points: 0 }
+                },
+
                 actionHistory: []
             };
         }
@@ -853,7 +970,7 @@ Current game state will be provided in each message.`;
             const defaults = {
                 fontSize: 20,
                 autoSave: true,
-                narrativeLength: 'standard',
+                narrativeLength: 'regular',
                 aiModel: 'claude' // 'claude' or 'webllm'
             };
 
@@ -861,7 +978,16 @@ Current game state will be provided in each message.`;
             if (!stored) return defaults;
 
             try {
-                return { ...defaults, ...JSON.parse(stored) };
+                const settings = { ...defaults, ...JSON.parse(stored) };
+
+                // Migrate old narrative length settings
+                if (settings.narrativeLength === 'brief') {
+                    settings.narrativeLength = 'regular';
+                } else if (settings.narrativeLength === 'standard' || settings.narrativeLength === 'detailed') {
+                    settings.narrativeLength = 'regular';
+                }
+
+                return settings;
             } catch (e) {
                 return defaults;
             }
@@ -906,10 +1032,10 @@ Current game state will be provided in each message.`;
                     }
                 };
 
-                // Create engine with Phi-3-mini model
+                // Create engine with Llama model (better for narrative generation)
                 console.log('🔧 Creating MLC Engine...');
                 webllmEngine = await webllmModule.CreateMLCEngine(
-                    "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+                    "Llama-3.2-3B-Instruct-q4f16_1-MLC",
                     {
                         initProgressCallback: initProgressCallback,
                         logLevel: "INFO"
@@ -1026,6 +1152,48 @@ Current game state will be provided in each message.`;
             try {
                 const saveData = JSON.parse(saveString);
                 gameState = saveData.gameState;
+
+                // Migrate old saves without skills
+                if (!gameState.skills) {
+                    console.log('🔄 Migrating old save to include skills system');
+                    gameState.skills = {
+                        survival: { level: 1, xp: 0, points: 0 },
+                        technology: { level: 1, xp: 0, points: 0 },
+                        exploration: { level: 2, xp: 0, points: 0 },
+                        combat: { level: 1, xp: 0, points: 0 }
+                    };
+                }
+
+                // Migrate old skill format to new points-based system
+                Object.keys(gameState.skills).forEach(skill => {
+                    // Convert old number format
+                    if (typeof gameState.skills[skill] === 'number') {
+                        gameState.skills[skill] = {
+                            level: gameState.skills[skill],
+                            xp: 0,
+                            points: 0
+                        };
+                    }
+
+                    // Convert old level/xp format to new points format
+                    if (gameState.skills[skill].points === undefined) {
+                        const oldLevel = gameState.skills[skill].level || 1;
+                        const oldXP = gameState.skills[skill].xp || 0;
+
+                        // Convert: level 1 = 0 points, level 2 = 5 points, etc.
+                        // Each level beyond 1 = 5 points, plus XP/2 as bonus points
+                        const convertedPoints = Math.floor((oldLevel - 1) * 5 + oldXP / 2);
+
+                        gameState.skills[skill] = {
+                            level: 1, // Reset level (not used in new system)
+                            xp: 0,    // Reset XP (not used in new system)
+                            points: Math.max(0, convertedPoints)
+                        };
+
+                        console.log(`🔄 Migrated ${skill}: level ${oldLevel} + ${oldXP}xp → ${convertedPoints} points`);
+                    }
+                });
+
                 updateGameUI();
                 return true;
             } catch (error) {
@@ -1079,7 +1247,7 @@ Current game state will be provided in each message.`;
             return Math.floor(Math.random() * sides) + 1;
         }
 
-        function performSkillCheck(difficulty, bonuses = 0) {
+        function performSkillCheck(difficulty, bonuses = 0, skillName = null) {
             const roll = rollDice(20);
             const total = roll + bonuses;
             const dc = DIFFICULTY_DC[difficulty.toLowerCase()] || 12;
@@ -1093,13 +1261,20 @@ Current game state will be provided in each message.`;
                 success,
                 criticalSuccess: roll === 20,
                 criticalFailure: roll === 1,
-                difficulty
+                difficulty,
+                skillUsed: skillName
             };
         }
 
         function displayDiceRoll(check) {
             const diceEl = document.getElementById('dice-result');
             let result = `🎲 Rolling for ${check.difficulty}...\n`;
+
+            // Show which skill is being used
+            if (check.skillUsed) {
+                result += `[${capitalize(check.skillUsed)}]\n`;
+            }
+
             result += `Roll: ${check.roll}`;
             if (check.bonuses !== 0) {
                 result += ` + ${check.bonuses}`;
@@ -1118,6 +1293,96 @@ Current game state will be provided in each message.`;
 
             diceEl.textContent = result;
             diceEl.style.display = 'block';
+        }
+
+        // ===== SKILL SYSTEM =====
+        function detectSkillFromAction(actionText) {
+            const text = actionText.toLowerCase();
+
+            // Priority-based keyword detection (most specific first)
+
+            // COMBAT keywords (attacks, weapons, defense)
+            const combatKeywords = [
+                'attack', 'fight', 'shoot', 'defend', 'weapon', 'kill',
+                'battle', 'combat', 'strike', 'hit', 'dodge', 'block',
+                'charge', 'assault', 'aggressive'
+            ];
+
+            // TECHNOLOGY keywords (repairs, crafting, systems)
+            const technologyKeywords = [
+                'repair', 'fix', 'craft', 'build', 'upgrade', 'modify',
+                'engineer', 'construct', 'assemble', 'calibrate', 'system',
+                'computer', 'terminal', 'code', 'hack', 'program', 'wire',
+                'circuit', 'technology', 'device', 'tool'
+            ];
+
+            // SURVIVAL keywords (resources, hazards, health)
+            const survivalKeywords = [
+                'gather', 'collect', 'harvest', 'hunt', 'forage', 'scavenge',
+                'water', 'food', 'shelter', 'medicine', 'heal', 'survive',
+                'resource', 'toxin', 'radiation', 'temperature', 'hazard',
+                'environmental', 'adapt'
+            ];
+
+            // EXPLORATION keywords (discovery, navigation, investigation)
+            const explorationKeywords = [
+                'explore', 'search', 'investigate', 'examine', 'look',
+                'scout', 'survey', 'navigate', 'map', 'discover', 'find',
+                'study', 'analyze', 'inspect', 'observe', 'wander', 'trek',
+                'journey', 'travel', 'climb', 'descend', 'venture'
+            ];
+
+            // Check each category (return first match for priority)
+            for (const keyword of combatKeywords) {
+                if (text.includes(keyword)) return 'combat';
+            }
+
+            for (const keyword of technologyKeywords) {
+                if (text.includes(keyword)) return 'technology';
+            }
+
+            for (const keyword of survivalKeywords) {
+                if (text.includes(keyword)) return 'survival';
+            }
+
+            for (const keyword of explorationKeywords) {
+                if (text.includes(keyword)) return 'exploration';
+            }
+
+            // Default to exploration (core game theme)
+            return 'exploration';
+        }
+
+        function calculateSkillBonus(skillName) {
+            if (!gameState || !gameState.skills || !gameState.skills[skillName]) {
+                return 0;
+            }
+
+            // Bonus = skill level (capped at 10)
+            return Math.min(gameState.skills[skillName].level, 10);
+        }
+
+        function awardSkillPoints(skillName, diceRollResult) {
+            if (!gameState || !gameState.skills || !gameState.skills[skillName]) {
+                console.warn('Cannot award points: invalid skill', skillName);
+                return null;
+            }
+
+            const skill = gameState.skills[skillName];
+
+            // Award 1 point on success only
+            if (!diceRollResult.success) {
+                return null; // No points for failures
+            }
+
+            // Award 1 point per successful action
+            skill.points += 1;
+
+            return {
+                pointsAwarded: true,
+                newTotal: skill.points,
+                skillName: skillName
+            };
         }
 
         // ===== AI API INTEGRATION =====
@@ -1216,10 +1481,12 @@ Current game state will be provided in each message.`;
                 }
             }
 
-            // Add brevity reminder if brief mode is enabled
+            // Add brevity reminder based on mode
             const settings = getSettings();
-            if (settings.narrativeLength === 'brief') {
-                message += '\n\n[REMINDER: Keep response to 1-2 SHORT paragraphs maximum]';
+            if (settings.narrativeLength === 'concise') {
+                message += '\n\n[REMINDER: Maximum 300 characters total - this is a HARD LIMIT]';
+            } else {
+                message += '\n\n[REMINDER: 1-2 paragraphs maximum]';
             }
 
             return message;
@@ -1466,7 +1733,14 @@ Current game state will be provided in each message.`;
         }
 
         // ===== GAME LOOP =====
-        async function processPlayerAction(actionText, difficulty = null) {
+        async function processPlayerAction(actionText, difficulty = null, spentPoints = undefined) {
+            // If difficulty specified but no points decision made yet, show modal first
+            if (difficulty && spentPoints === undefined) {
+                pendingAction = { actionText, difficulty };
+                showSkillSpendModal(actionText, difficulty);
+                return;
+            }
+
             if (isProcessingAction) return;
 
             try {
@@ -1484,8 +1758,18 @@ Current game state will be provided in each message.`;
 
                 // Perform dice roll if difficulty specified
                 let diceRoll = null;
+                let appliedSkill = null;
+                let skillBonus = spentPoints || 0; // Use spent points as bonus
+
                 if (difficulty) {
-                    diceRoll = performSkillCheck(difficulty);
+                    appliedSkill = detectSkillFromAction(actionText);
+
+                    // Deduct points before roll
+                    if (spentPoints > 0 && gameState.skills[appliedSkill]) {
+                        gameState.skills[appliedSkill].points -= spentPoints;
+                    }
+
+                    diceRoll = performSkillCheck(difficulty, skillBonus, appliedSkill);
                     displayDiceRoll(diceRoll);
                 }
 
@@ -1510,6 +1794,16 @@ Current game state will be provided in each message.`;
 
                 // Apply state updates
                 applyStateUpdates(parsed.stateUpdate);
+
+                // Award skill points if skill was used
+                let skillProgress = null;
+                if (appliedSkill && diceRoll) {
+                    skillProgress = awardSkillPoints(appliedSkill, diceRoll);
+
+                    if (skillProgress?.pointsAwarded) {
+                        console.log(`✨ ${capitalize(appliedSkill)} earned 1 point! Total: ${skillProgress.newTotal}`);
+                    }
+                }
 
                 // Update current game state
                 gameState.currentNarrative = parsed.narrative;
@@ -1589,6 +1883,9 @@ Current game state will be provided in each message.`;
             // Update inventory
             updateInventoryDisplay();
 
+            // Update skills display
+            updateSkillsDisplay();
+
             // Scroll to top
             window.scrollTo(0, 0);
         }
@@ -1610,6 +1907,56 @@ Current game state will be provided in each message.`;
 
             itemsEl.innerHTML = items || '<div class="inventory-item">Empty</div>';
             console.log('✅ Inventory display updated');
+        }
+
+        function updateSkillsDisplay() {
+            if (!gameState || !gameState.skills) return;
+
+            const tooltip = document.getElementById('skills-tooltip');
+            if (!tooltip) return;
+
+            const skillNames = {
+                survival: 'Survival',
+                technology: 'Technology',
+                exploration: 'Exploration',
+                combat: 'Combat'
+            };
+
+            const skillIcons = {
+                survival: '🛡️',
+                technology: '🔧',
+                exploration: '🔭',
+                combat: '⚔️'
+            };
+
+            let html = '<strong>SKILL POINTS</strong><br><br>';
+
+            Object.entries(gameState.skills).forEach(([key, skill]) => {
+                html += `${skillIcons[key]} ${skillNames[key]}: ${skill.points} points<br>`;
+            });
+
+            html += '<br><em>Spend 1-5 points before rolling for +1 to +5 bonus</em>';
+
+            tooltip.innerHTML = html;
+        }
+
+        function showSkillSpendModal(actionText, difficulty) {
+            const skill = detectSkillFromAction(actionText);
+            const available = gameState.skills[skill]?.points || 0;
+
+            document.getElementById('skill-name-display').textContent = capitalize(skill);
+            document.getElementById('available-points-display').textContent = available;
+
+            const slider = document.getElementById('points-slider');
+            slider.max = Math.min(5, available); // Can't spend more than you have, max 5
+            slider.value = 0;
+            document.getElementById('bonus-display').textContent = '0';
+
+            showModal('skill-spend-modal');
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
         }
 
         // ===== UI STATE MANAGEMENT =====
@@ -1881,7 +2228,7 @@ Current game state will be provided in each message.`;
 
                     // Show info message about the change
                     if (e.target.value === 'webllm') {
-                        alert('WebLLM will download ~2GB on first use. The model runs entirely in your browser with no API costs.');
+                        alert('WebLLM will download ~2GB on first use (Llama 3.2 model). The model runs entirely in your browser with no API costs.');
                     } else {
                         alert('Switched to Claude API. You will need a valid API key to continue.');
                     }
@@ -1926,6 +2273,24 @@ Current game state will be provided in each message.`;
                 startNewGame();
             });
 
+            // Skill spending modal
+            document.getElementById('points-slider').addEventListener('input', (e) => {
+                document.getElementById('bonus-display').textContent = e.target.value;
+            });
+
+            document.getElementById('spend-and-roll-btn').addEventListener('click', () => {
+                const points = parseInt(document.getElementById('points-slider').value);
+                hideModal('skill-spend-modal');
+                processPlayerAction(pendingAction.actionText, pendingAction.difficulty, points);
+                pendingAction = null;
+            });
+
+            document.getElementById('skip-spend-btn').addEventListener('click', () => {
+                hideModal('skill-spend-modal');
+                processPlayerAction(pendingAction.actionText, pendingAction.difficulty, 0);
+                pendingAction = null;
+            });
+
             // Custom action form
             document.getElementById('custom-action-form').addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -1953,6 +2318,22 @@ Current game state will be provided in each message.`;
                     items.setAttribute('aria-hidden', 'false');
                     toggle.textContent = '[-]';
                     header.setAttribute('aria-expanded', 'true');
+                }
+            });
+
+            // Skills tooltip toggle
+            const skillsDisplay = document.getElementById('skills-display');
+            const skillsTooltip = document.getElementById('skills-tooltip');
+
+            skillsDisplay.addEventListener('click', () => {
+                updateSkillsDisplay();
+                skillsTooltip.classList.toggle('visible');
+            });
+
+            // Close tooltip when clicking elsewhere
+            document.addEventListener('click', (e) => {
+                if (!skillsDisplay.contains(e.target) && !skillsTooltip.contains(e.target)) {
+                    skillsTooltip.classList.remove('visible');
                 }
             });
 
