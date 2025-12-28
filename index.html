@@ -1370,16 +1370,19 @@ Current game state will be provided in each message.`;
 
             const skill = gameState.skills[skillName];
 
-            // Award 1 point on success only
+            // Award points on success only
             if (!diceRollResult.success) {
                 return null; // No points for failures
             }
 
-            // Award 1 point per successful action
-            skill.points += 1;
+            // Award points based on margin of success (roll - DC), minimum 1
+            const marginOfSuccess = diceRollResult.total - diceRollResult.dc;
+            const pointsEarned = Math.max(1, marginOfSuccess);
+            skill.points += pointsEarned;
 
             return {
                 pointsAwarded: true,
+                pointsEarned: pointsEarned,
                 newTotal: skill.points,
                 skillName: skillName
             };
@@ -1801,7 +1804,7 @@ Current game state will be provided in each message.`;
                     skillProgress = awardSkillPoints(appliedSkill, diceRoll);
 
                     if (skillProgress?.pointsAwarded) {
-                        console.log(`✨ ${capitalize(appliedSkill)} earned 1 point! Total: ${skillProgress.newTotal}`);
+                        console.log(`✨ ${capitalize(appliedSkill)} earned ${skillProgress.pointsEarned} point(s)! Total: ${skillProgress.newTotal}`);
                     }
                 }
 
