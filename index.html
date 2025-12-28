@@ -153,6 +153,7 @@
             font-family: 'Courier New', monospace;
             font-size: 18px;
             border: 2px solid var(--text-color);
+            white-space: pre-line;
         }
 
         /* Action options */
@@ -187,6 +188,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            line-height: 1.4em;
         }
 
         .action-btn:active {
@@ -203,6 +206,13 @@
             font-family: 'Courier New', monospace;
             font-size: 14px;
             opacity: 0.8;
+        }
+
+        .action-metadata {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            opacity: 0.8;
+            white-space: nowrap;
         }
 
         /* Custom action input */
@@ -775,6 +785,7 @@
             <div class="modal-buttons">
                 <button class="modal-btn" id="spend-and-roll-btn">Spend & Roll</button>
                 <button class="modal-btn secondary" id="skip-spend-btn">Don't Spend (0 bonus)</button>
+                <button class="modal-btn secondary" id="cancel-action-btn">Cancel Action</button>
             </div>
         </div>
     </div>
@@ -792,8 +803,8 @@
         // ===== CONFIGURATION CONSTANTS =====
         const CLAUDE_CONFIG = {
             apiEndpoint: '/api/chat', // Proxy endpoint
-            model: 'claude-sonnet-4-5-20250929',
-            maxTokens: 2048,
+            model: 'claude-3-5-haiku-20241022',
+            maxTokens: 1024,
             temperature: 0.8,
             apiVersion: '2023-06-01'
         };
@@ -970,7 +981,7 @@ Current game state will be provided in each message.`;
             const defaults = {
                 fontSize: 20,
                 autoSave: true,
-                narrativeLength: 'regular',
+                narrativeLength: 'concise',
                 aiModel: 'claude' // 'claude' or 'webllm'
             };
 
@@ -1266,21 +1277,55 @@ Current game state will be provided in each message.`;
             };
         }
 
-        function displayDiceRoll(check) {
+        function animateDiceRoll(check, skillProgress, callback) {
             const diceEl = document.getElementById('dice-result');
-            let result = `🎲 Rolling for ${check.difficulty}...\n`;
+            diceEl.style.display = 'block';
 
-            // Show which skill is being used
-            if (check.skillUsed) {
-                result += `[${capitalize(check.skillUsed)}]\n`;
-            }
+            // Show initial rolling message
+            let skillText = check.skillUsed ? ` [${capitalize(check.skillUsed)}]` : '';
+            diceEl.textContent = `🎲 Rolling for ${check.difficulty}${skillText}`;
 
+            // Animate with random numbers (11 frames, ~100ms each = 1100ms total)
+            let frameCount = 0;
+            const maxFrames = 11;
+
+            const animationInterval = setInterval(() => {
+                const randomRoll = Math.floor(Math.random() * 20) + 1;
+                diceEl.textContent = `🎲 Rolling for ${check.difficulty}${skillText}\n${randomRoll}...`;
+
+                frameCount++;
+                if (frameCount >= maxFrames) {
+                    clearInterval(animationInterval);
+                    // Show result without skill points
+                    displayDiceRoll(check, null);
+
+                    // After 0.5s, add skill points if earned
+                    if (skillProgress?.pointsAwarded) {
+                        setTimeout(() => {
+                            displayDiceRoll(check, skillProgress);
+                        }, 500);
+                    }
+
+                    if (callback) callback();
+                }
+            }, 100);
+        }
+
+        function displayDiceRoll(check, skillProgress = null) {
+            const diceEl = document.getElementById('dice-result');
+
+            // Build result with separate lines
+            let skillText = check.skillUsed ? ` [${capitalize(check.skillUsed)}]` : '';
+            let result = `🎲 Rolling for ${check.difficulty}${skillText}\n`;
+
+            // Roll result line
             result += `Roll: ${check.roll}`;
             if (check.bonuses !== 0) {
                 result += ` + ${check.bonuses}`;
             }
-            result += ` = ${check.total} vs DC ${check.dc}\n`;
+            result += ` = ${check.total} vs DC ${check.dc} `;
 
+            // Success/failure on same line
             if (check.criticalSuccess) {
                 result += `CRITICAL SUCCESS! ⭐`;
             } else if (check.criticalFailure) {
@@ -1289,6 +1334,11 @@ Current game state will be provided in each message.`;
                 result += `SUCCESS! ✓`;
             } else {
                 result += `FAILURE ✗`;
+            }
+
+            // Show skill points gained (if any) on new line
+            if (skillProgress?.pointsAwarded) {
+                result += `\n✨ +${skillProgress.pointsEarned} ${capitalize(skillProgress.skillName)} points`;
             }
 
             diceEl.textContent = result;
@@ -1773,7 +1823,17 @@ Current game state will be provided in each message.`;
                     }
 
                     diceRoll = performSkillCheck(difficulty, skillBonus, appliedSkill);
-                    displayDiceRoll(diceRoll);
+
+                    // Calculate skill progress immediately (before AI)
+                    const immediateSkillProgress = awardSkillPoints(appliedSkill, diceRoll);
+                    if (immediateSkillProgress?.pointsAwarded) {
+                        console.log(`✨ ${capitalize(appliedSkill)} earned ${immediateSkillProgress.pointsEarned} point(s)! Total: ${immediateSkillProgress.newTotal}`);
+                    }
+
+                    // Animate dice roll with skill progress
+                    animateDiceRoll(diceRoll, immediateSkillProgress, () => {
+                        // Animation complete, AI continues processing in background
+                    });
                 }
 
                 // Show loading message in narrative area
@@ -1797,16 +1857,6 @@ Current game state will be provided in each message.`;
 
                 // Apply state updates
                 applyStateUpdates(parsed.stateUpdate);
-
-                // Award skill points if skill was used
-                let skillProgress = null;
-                if (appliedSkill && diceRoll) {
-                    skillProgress = awardSkillPoints(appliedSkill, diceRoll);
-
-                    if (skillProgress?.pointsAwarded) {
-                        console.log(`✨ ${capitalize(appliedSkill)} earned ${skillProgress.pointsEarned} point(s)! Total: ${skillProgress.newTotal}`);
-                    }
-                }
 
                 // Update current game state
                 gameState.currentNarrative = parsed.narrative;
@@ -1861,14 +1911,30 @@ Current game state will be provided in each message.`;
                 button.setAttribute('role', 'menuitem');
 
                 const text = document.createElement('span');
-                text.textContent = `${index + 1}. ${option.text}`;
+                text.textContent = option.text;
 
-                const badge = document.createElement('span');
-                badge.className = 'difficulty-badge';
-                badge.textContent = `(${option.difficulty})`;
+                // Detect which skill this action uses
+                const skillUsed = detectSkillFromAction(option.text);
+                const skillIcons = {
+                    survival: '🛡️',
+                    technology: '🔧',
+                    exploration: '🔭',
+                    combat: '⚔️'
+                };
+                const skillNames = {
+                    survival: 'Survival',
+                    technology: 'Tech',
+                    exploration: 'Explore',
+                    combat: 'Combat'
+                };
+
+                // Create metadata element with icon, skill name, and difficulty
+                const metadata = document.createElement('span');
+                metadata.className = 'action-metadata';
+                metadata.textContent = `${skillIcons[skillUsed]} ${skillNames[skillUsed]} (${option.difficulty})`;
 
                 button.appendChild(text);
-                button.appendChild(badge);
+                button.appendChild(metadata);
 
                 button.addEventListener('click', () => {
                     processPlayerAction(option.text, option.difficulty);
@@ -2291,6 +2357,11 @@ Current game state will be provided in each message.`;
             document.getElementById('skip-spend-btn').addEventListener('click', () => {
                 hideModal('skill-spend-modal');
                 processPlayerAction(pendingAction.actionText, pendingAction.difficulty, 0);
+                pendingAction = null;
+            });
+
+            document.getElementById('cancel-action-btn').addEventListener('click', () => {
+                hideModal('skill-spend-modal');
                 pendingAction = null;
             });
 

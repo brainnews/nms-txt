@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+let PORT = 3000;
 
 // Middleware
 app.use(cors());
@@ -14,6 +14,8 @@ app.use(express.static(__dirname));
 
 // Proxy endpoint for Claude API
 app.post('/api/chat', async (req, res) => {
+    console.log('📥 Received request to /api/chat');
+    console.log('   Model:', req.body.model);
     try {
         const apiKey = req.headers['x-api-key'];
 
@@ -41,9 +43,11 @@ app.post('/api/chat', async (req, res) => {
         const data = await response.json();
 
         if (!response.ok) {
+            console.log('❌ Anthropic API error:', response.status, data);
             return res.status(response.status).json(data);
         }
 
+        console.log('✅ Success! Response received');
         res.json(data);
 
     } catch (error) {
@@ -52,9 +56,27 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`\n🚀 NMS.TXT Server running at http://localhost:${PORT}`);
-    console.log(`\n📱 To test on mobile/e-ink device, use your local IP address.`);
-    console.log(`   Find your IP with: ifconfig | grep "inet "`);
-    console.log(`\n🎮 Open http://localhost:${PORT} to play!\n`);
-});
+// Try to start server, automatically find available port if default is taken
+function startServer(port) {
+    const server = app.listen(port)
+        .on('listening', () => {
+            console.log(`\n🚀 NMS.TXT Server running at http://localhost:${port}`);
+            if (port !== 3000) {
+                console.log(`   ⚠️  Port 3000 was in use, using port ${port} instead`);
+            }
+            console.log(`\n📱 To test on mobile/e-ink device, use your local IP address.`);
+            console.log(`   Find your IP with: ifconfig | grep "inet "`);
+            console.log(`\n🎮 Open http://localhost:${port} to play!\n`);
+        })
+        .on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.log(`⚠️  Port ${port} is in use, trying ${port + 1}...`);
+                startServer(port + 1);
+            } else {
+                console.error('Server error:', err);
+                process.exit(1);
+            }
+        });
+}
+
+startServer(PORT);

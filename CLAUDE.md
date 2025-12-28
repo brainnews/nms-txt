@@ -12,8 +12,8 @@ The project is designed for e-ink devices (Boox Palma) and mobile phones with a 
 
 **Tech Stack:**
 - Single-file HTML architecture (index.html contains all HTML, CSS, and JavaScript)
-- Node.js/Express proxy server (server.js) to bypass CORS restrictions for Claude API
-- Claude Messages API for game narration and procedural generation
+- Node.js/Express proxy server (server.js) for local development, Cloudflare Functions for production
+- Dual AI backend: Claude Messages API (premium) or WebLLM with Llama 3.2 (free, browser-based)
 - marked.js for markdown rendering
 - No build process or bundler
 
@@ -36,17 +36,18 @@ All frontend code lives in `index.html` (~1500+ lines):
 - Conversation history managed client-side with sliding window (last 20 messages)
 
 ### 3. Game Master System Prompt
-Located at ~line 737 in `index.html`. This is the core "game engine" - it defines:
+Located in `getSystemPrompt()` function (~line 823) in `index.html`. This is the core "game engine" - it defines:
 - Response format: `[STATE UPDATE]` and `[OPTIONS]` sections
 - Dice roll mechanics (Easy DC 8, Medium DC 12, Hard DC 16, Very Hard DC 20)
+- Skill system acknowledgment (Claude sees skill usage in roll results)
 - Procedural generation rules
 - Tone and pacing guidelines
 - Game rules (no progression skipping, resource requirements, death mechanics)
 
-**Modifying game behavior requires updating the SYSTEM_PROMPT constant.**
+**Modifying game behavior requires updating the system prompt string in `getSystemPrompt()`.**
 
 ### 4. Response Parsing Architecture
-Claude responses follow a structured format parsed by `parseGameMasterResponse()` (~line 1053):
+Claude responses follow a structured format parsed by `parseGameMasterResponse()` (~line 1508):
 
 ```
 [Narrative text with markdown formatting]
@@ -66,10 +67,11 @@ Parser extracts:
 - `parsed.options` - Player action choices with difficulty levels
 
 ### 5. Game State Structure
-`gameState` object (~line 786) contains:
+`gameState` object (~line 894) contains:
 - **currentLocation**: Planet name, type, system, distance from center
 - **ship**: Health percentage, fuel amount
 - **inventory**: Key-value pairs of resources (iron, carbon, plutonium, etc.)
+- **skills**: Four skills (survival, technology, exploration, combat) with point totals
 - **conversationHistory**: Array of Claude API messages (pruned to last 20)
 - **actionHistory**: Player action log (last 50 actions)
 - **stats**: Planets visited, aliens encountered, resources gathered, distance traveled
@@ -83,7 +85,70 @@ Parser extracts:
 - Each save includes full game state + metadata (location, stats, timestamp)
 - 4.5MB size limit enforced
 
-### 7. E-ink Optimization Strategy
+### 7. WebLLM Integration (Dual AI Mode)
+The game supports two AI backends, selectable in settings:
+
+**Claude API Mode (Premium):**
+- Best narrative quality using Claude Sonnet 4.5
+- Requires API key from console.anthropic.com
+- Proxied through `/api/chat` endpoint (Express locally, Cloudflare Functions in production)
+- API key stored in localStorage (base64 encoded)
+
+**WebLLM Mode (Free):**
+- Runs Llama 3.2 3B entirely in the browser using WebAssembly
+- ~2GB model download on first use (cached afterward)
+- No API costs, works offline after initial download
+- Slightly simpler narratives but fully functional
+
+**Implementation Details:**
+- WebLLM module loaded dynamically via ES module import (~line 1010)
+- `callAI()` function (~line 1389) routes to appropriate backend based on `settings.aiModel`
+- Model initialization handled in `initializeWebLLM()` (~line 1010)
+- Progress tracking displayed during model download
+- Both modes use the same game master system prompt for consistency
+
+**Key Functions:**
+- `initializeWebLLM()` - Loads WebLLM library and downloads model
+- `callWebLLM()` - Sends messages to browser-based LLM
+- `callClaudeBackend()` - Sends messages to Claude API via proxy
+- `callAI()` - Main entry point that routes to correct backend
+
+### 8. Skill System
+Players develop 4 skills through successful actions:
+
+**Skills:**
+- **Survival** (🛡️) - Gathering resources, hazard resistance, health management
+- **Technology** (🔧) - Repairs, crafting, hacking, ship systems
+- **Exploration** (🔭) - Navigation, discovery, investigation, scouting
+- **Combat** (⚔️) - Fighting, defense, weapon use
+
+**Mechanics:**
+1. **Skill Detection:** `detectSkillFromAction()` (~line 1299) uses keyword matching to determine which skill applies to an action
+2. **Point Spending:** Before rolling, players can spend 1-5 skill points for +1 to +5 bonus to their roll
+3. **Point Earning:** On success, players earn points based on **margin of success** (total roll - DC, minimum 1)
+   - Example: DC 12, roll 15 → earn 3 points
+   - Example: DC 8, roll 10 → earn 2 points
+4. **Modal Flow:** When an action has difficulty, the skill spending modal appears before the roll
+
+**Key Functions:**
+- `detectSkillFromAction(actionText)` - Analyzes action text to determine which skill applies
+- `awardSkillPoints(skillName, diceRollResult)` - Awards points based on margin of success (~line 1365)
+- `showSkillSpendModal()` - Displays UI for spending points before rolling (~line 1943)
+- `calculateSkillBonus(skillName)` - Returns current skill level bonus (unused in new points system) (~line 1356)
+
+**State Structure:**
+```javascript
+skills: {
+    survival: { level: 1, xp: 0, points: 0 },
+    technology: { level: 1, xp: 0, points: 0 },
+    exploration: { level: 2, xp: 0, points: 0 },
+    combat: { level: 1, xp: 0, points: 0 }
+}
+```
+
+Note: `level` and `xp` are legacy fields kept for save compatibility. The active system uses `points` only.
+
+### 9. E-ink Optimization Strategy
 CSS optimizations for e-ink displays:
 - High contrast: `#FEFEF8` background, `#1A1A1A` text
 - Serif font (Georgia) at 20px with 1.8 line height
@@ -138,19 +203,22 @@ Ship: +5% | Fuel: +10 | Inventory: +Iron x5, +Carbon x3
 ```
 
 **If Claude doesn't follow this format, the parser will fail.** When debugging response parsing issues:
-1. Check `parseGameMasterResponse()` function (~line 1053)
+1. Check `parseGameMasterResponse()` function (~line 1508)
 2. Verify regex patterns match Claude's actual output
 3. Console.log the raw response to see format deviations
 
 ### Dice Roll System
-Rolls happen client-side in `performSkillCheck()` (~line 960):
+Rolls happen client-side in `performSkillCheck()` (~line 1250):
 - D20 roll (1-20)
+- Player can spend skill points before rolling for bonuses (+1 to +5)
+- Total = roll + bonus (from spent points)
 - Compared against difficulty class (DC)
-- Results: "critical success" (20), "success" (≥ DC), "failure" (< DC), "critical failure" (1)
+- Results: "critical success" (natural 20), "success" (total ≥ DC), "failure" (total < DC), "critical failure" (natural 1)
 - Result passed to Claude in user message for narrative integration
+- On success, skill points awarded based on margin of success (total - DC, minimum 1)
 
 ### Inventory Update Logic
-`applyStateUpdates()` function (~line 1093) handles state changes:
+`applyStateUpdates()` function (~line 1693) handles state changes:
 - Dynamically creates new inventory items if they don't exist
 - Uses `Math.max(0, value)` to prevent negative values
 - Updates stats counters (resourcesGathered, planetsVisited, etc.)
@@ -158,7 +226,7 @@ Rolls happen client-side in `performSkillCheck()` (~line 960):
 **Common bug:** Forgetting to initialize new item types will cause items to disappear. Always check that `gameState.inventory[item] === undefined` before setting initial value.
 
 ### Markdown Rendering
-Uses marked.js library (loaded from CDN) configured at ~line 1580:
+Uses marked.js library (loaded from CDN) configured at ~line 785:
 ```javascript
 marked.setOptions({
     breaks: true,        // Convert \n to <br>
@@ -167,10 +235,10 @@ marked.setOptions({
 });
 ```
 
-Narrative is rendered with `marked.parse()` at line ~1265.
+Narrative is rendered with `marked.parse()` in `updateGameUI()` at ~line 1849.
 
 ### Conversation History Pruning
-`pruneConversationHistory()` (~line 1034) keeps only last 20 messages to prevent token limit issues:
+`pruneConversationHistory()` (~line 1686) keeps only last 20 messages to prevent token limit issues:
 - System prompt always included (not counted in 20)
 - Older messages removed from gameState.conversationHistory
 - Full history still saved in save files for reference
@@ -224,6 +292,74 @@ const GAME_CONSTANTS = {
 ### Adding New Inventory Items
 No code changes needed - items are dynamically created when Claude mentions them in `[STATE UPDATE]` sections. The parser will automatically add new items to `gameState.inventory` object.
 
+### Modifying Skill System Behavior
+
+**Change skill point earning rate:**
+Edit `awardSkillPoints()` function (~line 1365):
+```javascript
+// Current: margin-based (roll - DC, minimum 1)
+const pointsEarned = Math.max(1, marginOfSuccess);
+
+// Faster progression: double the margin
+const pointsEarned = Math.max(1, marginOfSuccess * 2);
+
+// Fixed rate: always 2 points
+const pointsEarned = 2;
+```
+
+**Adjust maximum spendable points:**
+Edit skill spending modal setup (~line 1951):
+```javascript
+slider.max = Math.min(5, available); // Current: max 5
+slider.max = Math.min(10, available); // Allow spending up to 10
+```
+
+**Add or modify skill keywords:**
+Edit `detectSkillFromAction()` (~line 1299) keyword arrays:
+```javascript
+const combatKeywords = [
+    'attack', 'fight', 'shoot', // ... add new keywords here
+];
+```
+
+**Change starting skill points:**
+Edit `createInitialGameState()` (~line 894):
+```javascript
+skills: {
+    survival: { level: 1, xp: 0, points: 5 },  // Start with 5 points
+    technology: { level: 1, xp: 0, points: 5 },
+    exploration: { level: 2, xp: 0, points: 10 }, // Give exploration more
+    combat: { level: 1, xp: 0, points: 5 }
+}
+```
+
+### Switching AI Backends
+
+**Default to WebLLM mode:**
+Edit `getSettings()` default (~line 974):
+```javascript
+const defaults = {
+    fontSize: 20,
+    autoSave: true,
+    narrativeLength: 'regular',
+    aiModel: 'webllm' // Changed from 'claude'
+};
+```
+
+**Use different WebLLM model:**
+Edit `initializeWebLLM()` (~line 1037):
+```javascript
+// Current model:
+webllmEngine = await webllmModule.CreateMLCEngine(
+    "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+    // ...
+);
+
+// Other options (check WebLLM docs for available models):
+// "Llama-3.2-1B-Instruct-q4f16_1-MLC" (smaller, faster)
+// "Phi-3.5-mini-instruct-q4f16_1-MLC" (alternative small model)
+```
+
 ### Changing E-ink Optimization Level
 To prioritize responsiveness over e-ink optimization, edit CSS at ~line 40:
 ```css
@@ -259,12 +395,27 @@ The proxy server (`server.js`) is minimal by design:
 ### Conversation History Too Large
 - Check message count: `gameState.conversationHistory.length`
 - Should never exceed 20 (plus system prompt)
-- If larger, pruning function isn't working - check `pruneConversationHistory()` at ~line 1034
+- If larger, pruning function isn't working - check `pruneConversationHistory()` at ~line 1686
 
 ### Markdown Not Rendering
 - Verify marked.js loaded: check browser console for 404 errors on CDN script
 - Check markdown parsing: `marked.parse('**test**')` in console
-- Verify narrative element updates in `updateGameUI()` at ~line 1265
+- Verify narrative element updates in `updateGameUI()` at ~line 1849
+
+### Skill System Issues
+- **Points not awarded:** Check console for skill progress logs (`✨ [Skill] earned X point(s)`)
+- **Wrong skill detected:** Console shows which skill was applied in dice roll display
+- **Inspect current points:** `gameState.skills` in console shows all skill point totals
+- **Modal not appearing:** Check that action has a difficulty assigned (Easy/Medium/Hard/Very Hard)
+- **Can't spend points:** Verify `gameState.skills[skillName].points > 0` in console
+
+### WebLLM Issues
+- **Model won't load:** Check browser console for WebLLM errors
+- **Slow first load:** Model download is ~2GB, can take 5-10 minutes on slow connections
+- **Out of memory:** WebLLM requires ~4GB RAM available, won't work on low-end devices
+- **Check initialization:** `isWebLLMInitialized` variable should be `true` after first use
+- **Switch back to Claude:** Change AI model in settings if WebLLM fails
+- **Browser compatibility:** WebLLM requires WebAssembly and WebGPU support (Chrome/Edge work best)
 
 ## Browser Compatibility
 
