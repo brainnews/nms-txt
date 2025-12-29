@@ -1151,7 +1151,8 @@ function updateGameUI() {
         // Create metadata element with icon, skill name, and difficulty
         const metadata = document.createElement('span');
         metadata.className = 'action-metadata';
-        metadata.textContent = `${skillIcons[skillUsed]} ${skillNames[skillUsed]} (${option.difficulty})`;
+        const dc = DIFFICULTY_DC[option.difficulty.toLowerCase()] || 12;
+        metadata.textContent = `${skillIcons[skillUsed]} ${skillNames[skillUsed]} (DC ${dc})`;
 
         button.appendChild(text);
         button.appendChild(metadata);
