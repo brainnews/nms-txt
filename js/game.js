@@ -1152,7 +1152,7 @@ function updateGameUI() {
         const metadata = document.createElement('span');
         metadata.className = 'action-metadata';
         const dc = DIFFICULTY_DC[option.difficulty.toLowerCase()] || 12;
-        metadata.textContent = `${skillIcons[skillUsed]} ${skillNames[skillUsed]} (${dc})`;
+        metadata.innerHTML = `<span class="alchemical-symbol">${skillIcons[skillUsed]}</span> ${skillNames[skillUsed]} (${dc})`;
 
         button.appendChild(text);
         button.appendChild(metadata);
@@ -1234,7 +1234,7 @@ function updateSkillsDisplay() {
         const formattedPoints = skill.points < 10 ? '0' + skill.points : String(skill.points);
         html += `
             <div class="skill-item">
-                <span class="skill-name">${skillIcons[key]} ${skillNames[key]}</span>
+                <span class="skill-name"><span class="alchemical-symbol">${skillIcons[key]}</span> ${skillNames[key]}</span>
                 <span class="skill-points">${formattedPoints}</span>
             </div>
         `;

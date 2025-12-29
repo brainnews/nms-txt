@@ -417,6 +417,10 @@ h1 {
     padding: 10px 0;
 }
 
+#skills-content.panel-content {
+    padding: 20px 10px;
+}
+
 /* Skill panel */
 .panel-content.open {
     display: grid;
@@ -717,6 +721,10 @@ h1 {
 /* ===== UTILITY CLASSES ===== */
 .hidden {
     display: none;
+}
+
+.alchemical-symbol {
+    margin-bottom: -5px;
 }
 
 .flex-row {
