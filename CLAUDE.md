@@ -89,10 +89,11 @@ Parser extracts:
 The game supports two AI backends, selectable in settings:
 
 **Claude API Mode (Premium):**
-- Best narrative quality using Claude Sonnet 4.5
+- Best narrative quality using Claude Haiku 3.5 (cost-optimized for concise mode)
 - Requires API key from console.anthropic.com
 - Proxied through `/api/chat` endpoint (Express locally, Cloudflare Functions in production)
 - API key stored in localStorage (base64 encoded)
+- Current model: `claude-3-5-haiku-20241022` (67% cheaper than Sonnet, perfect for short narratives)
 
 **WebLLM Mode (Free):**
 - Runs Llama 3.2 3B entirely in the browser using WebAssembly
@@ -165,7 +166,7 @@ CSS optimizations for e-ink displays:
 # Install dependencies (first time only)
 npm install
 
-# Start the server (runs on port 3000)
+# Start the server (auto-finds available port, defaults to 3000)
 npm start
 
 # Access the game
@@ -178,6 +179,11 @@ npm start
 ifconfig | grep "inet "
 ```
 
+**Server Features:**
+- Automatically finds available port if 3000 is in use
+- Logs all API requests for debugging
+- Handles CORS for local development
+
 ### Testing on E-ink Devices
 The Boox Palma (or other e-ink readers) can access the game over local network:
 1. Ensure device and computer are on same WiFi
@@ -185,6 +191,24 @@ The Boox Palma (or other e-ink readers) can access the game over local network:
 3. On e-ink device, navigate to `http://<YOUR_IP>:3000`
 4. Enter Claude API key when prompted
 5. API key persists in device localStorage
+
+### Deployment to Production
+
+The game is deployed to Cloudflare Pages with Cloudflare Functions:
+
+**Live URL:** https://nms.milesgilbert.xyz
+
+**Deployment Process:**
+1. Push changes to GitHub (main branch)
+2. Cloudflare Pages automatically deploys
+3. No build process required (static files served as-is)
+4. `/functions/api/chat.js` becomes serverless endpoint at `/api/chat`
+
+**Cloudflare Function:**
+- Handles API proxy in production (replaces local Express server)
+- Supports CORS preflight (OPTIONS requests)
+- Same functionality as `server.js` but serverless
+- Location: `functions/api/chat.js`
 
 ## Important Implementation Details
 
@@ -216,6 +240,12 @@ Rolls happen client-side in `performSkillCheck()` (~line 1250):
 - Results: "critical success" (natural 20), "success" (total ≥ DC), "failure" (total < DC), "critical failure" (natural 1)
 - Result passed to Claude in user message for narrative integration
 - On success, skill points awarded based on margin of success (total - DC, minimum 1)
+
+**Dice Animation Flow:**
+1. Player submits action → `animateDiceRoll()` shows random numbers for 1.1 seconds (~line 1280)
+2. Animation ends → displays actual roll result
+3. After 0.5s delay → skill points earned appear (if successful)
+4. All animation happens asynchronously while AI generates story
 
 ### Inventory Update Logic
 `applyStateUpdates()` function (~line 1693) handles state changes:
@@ -267,16 +297,23 @@ const DIFFICULTY_DC = {
 ```
 
 ### Adjusting Claude Model or Settings
-Edit configuration at ~line 705:
+Edit configuration at ~line 804:
 ```javascript
 const CLAUDE_CONFIG = {
     apiEndpoint: '/api/chat',
-    model: 'claude-sonnet-4-20250514',
-    maxTokens: 2048,
+    model: 'claude-3-5-haiku-20241022',  // Current: Haiku 3.5 (cost-optimized)
+    maxTokens: 1024,                     // Reduced from 2048 for concise mode
     temperature: 0.8,
     apiVersion: '2023-06-01'
 };
 ```
+
+**Available Models:**
+- `claude-3-5-haiku-20241022` - Fastest, cheapest, perfect for concise narratives (current)
+- `claude-sonnet-4-5-20250929` - Better quality, 67% more expensive
+- `claude-opus-4-5-20251101` - Best quality, 5x more expensive
+
+**Note:** Model ID must be exact. Check [Anthropic docs](https://docs.anthropic.com/en/docs/about-claude/models) for current model names.
 
 ### Modifying Save Behavior
 Edit constants at ~line 722:
@@ -371,13 +408,22 @@ To prioritize responsiveness over e-ink optimization, edit CSS at ~line 40:
 
 ## Server Configuration
 
-The proxy server (`server.js`) is minimal by design:
-- Port 3000 (hardcoded)
+### Local Development Server (`server.js`)
+The Express proxy server is minimal by design:
+- Auto-finds available port (defaults to 3000, tries 3001, 3002, etc. if occupied)
 - 10MB JSON body limit for large conversation histories
 - CORS enabled for all origins
 - Single endpoint: `POST /api/chat`
+- Debug logging for requests and errors
 
 **Why the proxy exists:** Claude API doesn't allow direct browser requests due to CORS policy. The proxy forwards requests server-side.
+
+### Production Server (`functions/api/chat.js`)
+Cloudflare Function handles API proxy in production:
+- Serverless, auto-scales
+- Same functionality as local Express server
+- Handles CORS preflight (OPTIONS requests)
+- Available at `/api/chat` on deployed site
 
 ## Debugging Tips
 
