@@ -1152,7 +1152,7 @@ function updateGameUI() {
         const metadata = document.createElement('span');
         metadata.className = 'action-metadata';
         const dc = DIFFICULTY_DC[option.difficulty.toLowerCase()] || 12;
-        metadata.textContent = `${skillIcons[skillUsed]} ${skillNames[skillUsed]} (DC ${dc})`;
+        metadata.textContent = `${skillIcons[skillUsed]} ${skillNames[skillUsed]} (${dc})`;
 
         button.appendChild(text);
         button.appendChild(metadata);
