@@ -11,7 +11,7 @@ The project is designed for e-ink devices (Boox Palma) and mobile phones with a 
 ## Architecture
 
 **Tech Stack:**
-- Single-file HTML architecture (index.html contains all HTML, CSS, and JavaScript)
+- Multi-file frontend: Separated HTML, CSS, and JavaScript for maintainability
 - Node.js/Express proxy server (server.js) for local development, Cloudflare Functions for production
 - Dual AI backend: Claude Messages API (premium) or WebLLM with Llama 3.2 (free, browser-based)
 - marked.js for markdown rendering
@@ -19,24 +19,45 @@ The project is designed for e-ink devices (Boox Palma) and mobile phones with a 
 
 **Key Architectural Patterns:**
 
-### 1. Single-File Design
-All frontend code lives in `index.html` (~1500+ lines):
-- Lines 1-500: HTML structure, CSS styles, e-ink optimizations
-- Lines 500-700: Configuration constants (CLAUDE_CONFIG, STORAGE_KEYS, GAME_CONSTANTS, DIFFICULTY_DC, SYSTEM_PROMPT)
-- Lines 700-850: Game state initialization and management
-- Lines 850-1050: API communication and localStorage helpers
-- Lines 1050-1175: Response parsing and state update logic
-- Lines 1175-1500: Game loop, UI updates, event handlers
-- Lines 1500+: Initialization and modal management
+### 1. Organized File Structure
+Frontend code is separated into organized files:
+- `index.html` (~150 lines) - Clean HTML markup with semantic structure
+- `css/styles.css` (~820 lines) - All styling with 13 organized sections
+- `js/game.js` (~1680 lines) - Game logic with 19 organized sections
+- `assets/` - SVG icons (logo, location, galaxy center)
+
+**JavaScript Organization (js/game.js):**
+- Markdown configuration
+- Configuration constants (CLAUDE_CONFIG, STORAGE_KEYS, GAME_CONSTANTS, DIFFICULTY_DC)
+- System prompt
+- State variables
+- Game state initialization
+- Storage & API key management
+- Settings management
+- WebLLM integration
+- Save/load system
+- Dice & skill system
+- AI integration
+- Utility functions
+- Response parsing
+- State management
+- Game logic
+- UI updates
+- Modal management
+- Game initialization
+- Event handlers
+
+**CSS Organization (css/styles.css):**
+All styles use CSS variables for theming and are organized into clear sections (variables, e-ink optimizations, base styles, header, narrative, dice, actions, info panel, panels, modals, utilities, responsive, print)
 
 ### 2. Claude API Integration via Proxy
-- **Frontend** (`index.html`): Calls `/api/chat` endpoint
+- **Frontend** (`js/game.js`): Calls `/api/chat` endpoint
 - **Proxy Server** (`server.js`): Forwards requests to `https://api.anthropic.com/v1/messages`
 - API key stored in localStorage (base64 encoded for obfuscation, not security)
 - Conversation history managed client-side with sliding window (last 20 messages)
 
 ### 3. Game Master System Prompt
-Located in `getSystemPrompt()` function (~line 823) in `index.html`. This is the core "game engine" - it defines:
+Located in `getSystemPrompt()` function in `js/game.js`. This is the core "game engine" - it defines:
 - Response format: `[STATE UPDATE]` and `[OPTIONS]` sections
 - Dice roll mechanics (Easy DC 8, Medium DC 12, Hard DC 16, Very Hard DC 20)
 - Skill system acknowledgment (Claude sees skill usage in roll results)
@@ -47,7 +68,7 @@ Located in `getSystemPrompt()` function (~line 823) in `index.html`. This is the
 **Modifying game behavior requires updating the system prompt string in `getSystemPrompt()`.**
 
 ### 4. Response Parsing Architecture
-Claude responses follow a structured format parsed by `parseGameMasterResponse()` (~line 1508):
+Claude responses follow a structured format parsed by `parseGameMasterResponse()` in `js/game.js`:
 
 ```
 [Narrative text with markdown formatting]
@@ -67,7 +88,7 @@ Parser extracts:
 - `parsed.options` - Player action choices with difficulty levels
 
 ### 5. Game State Structure
-`gameState` object (~line 894) contains:
+`gameState` object in `js/game.js` contains:
 - **currentLocation**: Planet name, type, system, distance from center
 - **ship**: Health percentage, fuel amount
 - **inventory**: Key-value pairs of resources (iron, carbon, plutonium, etc.)
@@ -102,9 +123,9 @@ The game supports two AI backends, selectable in settings:
 - Slightly simpler narratives but fully functional
 
 **Implementation Details:**
-- WebLLM module loaded dynamically via ES module import (~line 1010)
-- `callAI()` function (~line 1389) routes to appropriate backend based on `settings.aiModel`
-- Model initialization handled in `initializeWebLLM()` (~line 1010)
+- WebLLM module loaded dynamically via ES module import in `js/game.js`
+- `callAI()` function routes to appropriate backend based on `settings.aiModel`
+- Model initialization handled in `initializeWebLLM()`
 - Progress tracking displayed during model download
 - Both modes use the same game master system prompt for consistency
 
@@ -124,18 +145,18 @@ Players develop 4 skills through successful actions:
 - **Combat** (⚔️) - Fighting, defense, weapon use
 
 **Mechanics:**
-1. **Skill Detection:** `detectSkillFromAction()` (~line 1299) uses keyword matching to determine which skill applies to an action
+1. **Skill Detection:** `detectSkillFromAction()` uses keyword matching to determine which skill applies to an action
 2. **Point Spending:** Before rolling, players can spend 1-5 skill points for +1 to +5 bonus to their roll
 3. **Point Earning:** On success, players earn points based on **margin of success** (total roll - DC, minimum 1)
    - Example: DC 12, roll 15 → earn 3 points
    - Example: DC 8, roll 10 → earn 2 points
 4. **Modal Flow:** When an action has difficulty, the skill spending modal appears before the roll
 
-**Key Functions:**
+**Key Functions (all in js/game.js):**
 - `detectSkillFromAction(actionText)` - Analyzes action text to determine which skill applies
-- `awardSkillPoints(skillName, diceRollResult)` - Awards points based on margin of success (~line 1365)
-- `showSkillSpendModal()` - Displays UI for spending points before rolling (~line 1943)
-- `calculateSkillBonus(skillName)` - Returns current skill level bonus (unused in new points system) (~line 1356)
+- `awardSkillPoints(skillName, diceRollResult)` - Awards points based on margin of success
+- `showSkillSpendModal()` - Displays UI for spending points before rolling
+- `calculateSkillBonus(skillName)` - Returns current skill level bonus (unused in new points system)
 
 **State Structure:**
 ```javascript
@@ -227,12 +248,12 @@ Ship: +5% | Fuel: +10 | Inventory: +Iron x5, +Carbon x3
 ```
 
 **If Claude doesn't follow this format, the parser will fail.** When debugging response parsing issues:
-1. Check `parseGameMasterResponse()` function (~line 1508)
+1. Check `parseGameMasterResponse()` function in `js/game.js`
 2. Verify regex patterns match Claude's actual output
 3. Console.log the raw response to see format deviations
 
 ### Dice Roll System
-Rolls happen client-side in `performSkillCheck()` (~line 1250):
+Rolls happen client-side in `performSkillCheck()` in `js/game.js`:
 - D20 roll (1-20)
 - Player can spend skill points before rolling for bonuses (+1 to +5)
 - Total = roll + bonus (from spent points)
@@ -242,13 +263,13 @@ Rolls happen client-side in `performSkillCheck()` (~line 1250):
 - On success, skill points awarded based on margin of success (total - DC, minimum 1)
 
 **Dice Animation Flow:**
-1. Player submits action → `animateDiceRoll()` shows random numbers for 1.1 seconds (~line 1280)
+1. Player submits action → `animateDiceRoll()` shows random numbers for 1.1 seconds
 2. Animation ends → displays actual roll result
 3. After 0.5s delay → skill points earned appear (if successful)
 4. All animation happens asynchronously while AI generates story
 
 ### Inventory Update Logic
-`applyStateUpdates()` function (~line 1693) handles state changes:
+`applyStateUpdates()` function in `js/game.js` handles state changes:
 - Dynamically creates new inventory items if they don't exist
 - Uses `Math.max(0, value)` to prevent negative values
 - Updates stats counters (resourcesGathered, planetsVisited, etc.)
@@ -256,7 +277,7 @@ Rolls happen client-side in `performSkillCheck()` (~line 1250):
 **Common bug:** Forgetting to initialize new item types will cause items to disappear. Always check that `gameState.inventory[item] === undefined` before setting initial value.
 
 ### Markdown Rendering
-Uses marked.js library (loaded from CDN) configured at ~line 785:
+Uses marked.js library (loaded from CDN) configured in `js/game.js`:
 ```javascript
 marked.setOptions({
     breaks: true,        // Convert \n to <br>
@@ -265,10 +286,10 @@ marked.setOptions({
 });
 ```
 
-Narrative is rendered with `marked.parse()` in `updateGameUI()` at ~line 1849.
+Narrative is rendered with `marked.parse()` in `updateGameUI()`.
 
 ### Conversation History Pruning
-`pruneConversationHistory()` (~line 1686) keeps only last 20 messages to prevent token limit issues:
+`pruneConversationHistory()` in `js/game.js` keeps only last 20 messages to prevent token limit issues:
 - System prompt always included (not counted in 20)
 - Older messages removed from gameState.conversationHistory
 - Full history still saved in save files for reference
@@ -277,8 +298,19 @@ Narrative is rendered with `marked.parse()` in `updateGameUI()` at ~line 1849.
 
 ```
 nms-txt/
-├── index.html          # Complete frontend (HTML + CSS + JS in one file)
-├── server.js           # Express proxy server for Claude API
+├── index.html          # Clean HTML markup (~150 lines)
+├── css/
+│   └── styles.css      # All CSS organized with comments (~820 lines)
+├── js/
+│   └── game.js         # All JavaScript with clear sections (~1680 lines)
+├── assets/
+│   ├── logo.svg        # NMS.TXT logo
+│   ├── location-icon.svg    # Spaceship icon for location display
+│   └── galaxy-icon.svg      # Galaxy center distance icon
+├── functions/
+│   └── api/
+│       └── chat.js     # Cloudflare Function for API proxy (production)
+├── server.js           # Express proxy server for Claude API (local dev)
 ├── package.json        # Node.js dependencies (express, cors)
 └── package-lock.json   # Dependency lock file
 ```
@@ -286,7 +318,7 @@ nms-txt/
 ## Common Modifications
 
 ### Changing Game Difficulty
-Edit difficulty constants at ~line 729:
+Edit difficulty constants in `js/game.js`:
 ```javascript
 const DIFFICULTY_DC = {
     easy: 8,      // 65% success rate
@@ -297,7 +329,7 @@ const DIFFICULTY_DC = {
 ```
 
 ### Adjusting Claude Model or Settings
-Edit configuration at ~line 804:
+Edit configuration in `js/game.js`:
 ```javascript
 const CLAUDE_CONFIG = {
     apiEndpoint: '/api/chat',
@@ -316,7 +348,7 @@ const CLAUDE_CONFIG = {
 **Note:** Model ID must be exact. Check [Anthropic docs](https://docs.anthropic.com/en/docs/about-claude/models) for current model names.
 
 ### Modifying Save Behavior
-Edit constants at ~line 722:
+Edit constants in `js/game.js`:
 ```javascript
 const GAME_CONSTANTS = {
     maxConversationHistory: 20,     // Messages kept in memory
@@ -332,7 +364,7 @@ No code changes needed - items are dynamically created when Claude mentions them
 ### Modifying Skill System Behavior
 
 **Change skill point earning rate:**
-Edit `awardSkillPoints()` function (~line 1365):
+Edit `awardSkillPoints()` function in `js/game.js`:
 ```javascript
 // Current: margin-based (roll - DC, minimum 1)
 const pointsEarned = Math.max(1, marginOfSuccess);
@@ -345,14 +377,14 @@ const pointsEarned = 2;
 ```
 
 **Adjust maximum spendable points:**
-Edit skill spending modal setup (~line 1951):
+Edit skill spending modal setup in `js/game.js`:
 ```javascript
 slider.max = Math.min(5, available); // Current: max 5
 slider.max = Math.min(10, available); // Allow spending up to 10
 ```
 
 **Add or modify skill keywords:**
-Edit `detectSkillFromAction()` (~line 1299) keyword arrays:
+Edit `detectSkillFromAction()` keyword arrays in `js/game.js`:
 ```javascript
 const combatKeywords = [
     'attack', 'fight', 'shoot', // ... add new keywords here
@@ -360,7 +392,7 @@ const combatKeywords = [
 ```
 
 **Change starting skill points:**
-Edit `createInitialGameState()` (~line 894):
+Edit `createInitialGameState()` in `js/game.js`:
 ```javascript
 skills: {
     survival: { level: 1, xp: 0, points: 5 },  // Start with 5 points
@@ -373,7 +405,7 @@ skills: {
 ### Switching AI Backends
 
 **Default to WebLLM mode:**
-Edit `getSettings()` default (~line 974):
+Edit `getSettings()` default in `js/game.js`:
 ```javascript
 const defaults = {
     fontSize: 20,
@@ -384,7 +416,7 @@ const defaults = {
 ```
 
 **Use different WebLLM model:**
-Edit `initializeWebLLM()` (~line 1037):
+Edit `initializeWebLLM()` in `js/game.js`:
 ```javascript
 // Current model:
 webllmEngine = await webllmModule.CreateMLCEngine(
@@ -398,7 +430,7 @@ webllmEngine = await webllmModule.CreateMLCEngine(
 ```
 
 ### Changing E-ink Optimization Level
-To prioritize responsiveness over e-ink optimization, edit CSS at ~line 40:
+To prioritize responsiveness over e-ink optimization, edit `css/styles.css`:
 ```css
 * {
     transition: none !important;  /* Remove this line to enable transitions */
