@@ -1139,7 +1139,7 @@ function updateGameUI() {
             survival: '🜲',
             technology: '🝰',
             exploration: '🜳',
-            combat: '⤱'
+            combat: '🜸'
         };
         const skillNames = {
             survival: 'Survival',
@@ -1225,7 +1225,7 @@ function updateSkillsDisplay() {
         survival: '🜲',
         technology: '🝰',
         exploration: '🜳',
-        combat: '⤱'
+        combat: '🜸'
     };
 
     let html = '';
@@ -1603,15 +1603,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Custom action form
-    document.getElementById('custom-action-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('custom-action-input');
-        const action = input.value.trim();
-        if (action) {
-            processPlayerAction(action);
-            input.value = '';
-        }
-    });
+    const customActionForm = document.getElementById('custom-action-form');
+    if (customActionForm) {
+        customActionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('custom-action-input');
+            const action = input.value.trim();
+            if (action) {
+                processPlayerAction(action);
+                input.value = '';
+            }
+        });
+    }
 
     // Skills panel toggle
     document.getElementById('skills-header').addEventListener('click', () => {
