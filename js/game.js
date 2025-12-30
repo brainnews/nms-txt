@@ -244,6 +244,30 @@ function clearApiKey() {
     localStorage.removeItem(STORAGE_KEYS.apiKey);
 }
 
+function importApiKeyFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const keyParam = urlParams.get('key');
+
+    if (keyParam && keyParam.trim()) {
+        // Validate key format (basic check for Anthropic key)
+        if (keyParam.startsWith('sk-ant-')) {
+            saveApiKey(keyParam.trim());
+
+            // Remove parameter from URL without page reload
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+
+            console.log('✓ API key imported from URL and saved to localStorage');
+            return true;
+        } else {
+            console.warn('⚠ Invalid API key format in URL parameter');
+            return false;
+        }
+    }
+
+    return false;
+}
+
 // ===== SETTINGS MANAGEMENT =====
 function getSettings() {
     const defaults = {
@@ -1852,6 +1876,17 @@ async function initializeGame() {
     // Apply settings
     const settings = getSettings();
     applySettings(settings);
+
+    // Check for URL parameter key import
+    const keyImported = importApiKeyFromUrl();
+    if (keyImported) {
+        // Show brief success message
+        const successMsg = document.createElement('div');
+        successMsg.textContent = '✓ API key loaded successfully';
+        successMsg.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#2d4a2b;color:#a8e6a1;padding:12px 24px;border-radius:4px;z-index:10000;font-family:inherit;';
+        document.body.appendChild(successMsg);
+        setTimeout(() => successMsg.remove(), 3000);
+    }
 
     // Check for API key (only required for Claude mode)
     if (settings.aiModel === 'claude') {
