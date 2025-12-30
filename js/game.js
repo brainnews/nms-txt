@@ -31,11 +31,68 @@ const GAME_CONSTANTS = {
 };
 
 const DIFFICULTY_DC = {
-    easy: 8,
-    medium: 12,
-    hard: 16,
-    'very hard': 20
+    easy: 6,        // ~75% success (was 8, 65%)
+    medium: 9,      // ~60% success (was 12, 45%)
+    hard: 13,       // ~40% success (was 16, 25%)
+    'very hard': 17 // ~20% success (was 20, 5%)
 };
+
+const STARTING_SCENARIOS = [
+    {
+        id: 'crash_landing',
+        name: 'Crash Landing',
+        shipHealth: 15,
+        fuel: 0,
+        inventory: {},
+        prompt: 'Begin the game. The player wakes up disoriented inside their crashed ship on a strange alien planet. The hull is breached, alarms are blaring, and acrid smoke fills the cockpit. Describe their immediate surroundings as they stumble out of the wreckage.',
+        systemContext: 'Crashed on random planet, ship 15% functional, no fuel'
+    },
+    {
+        id: 'adrift_space',
+        name: 'Adrift in Space',
+        shipHealth: 40,
+        fuel: 5,
+        inventory: { plutonium: 3, carbon: 2 },
+        prompt: 'Begin the game. The player awakens from cryosleep aboard their drifting ship. Life support is failing, the engines are offline, and they are floating in space near an unknown planet. Describe the eerie silence of the ship and the strange world visible through the viewport.',
+        systemContext: 'Adrift in space near planet, ship 40% functional, minimal fuel'
+    },
+    {
+        id: 'underwater_pod',
+        name: 'Underwater Escape Pod',
+        shipHealth: 5,
+        fuel: 0,
+        inventory: { oxygen: 50 },
+        prompt: 'Begin the game. The player is trapped in an emergency escape pod that has crashed into an alien ocean. Water is slowly leaking in, emergency lights are flickering red, and through the small window they can see bizarre aquatic life forms circling. They must reach the surface and find land. Describe this desperate situation.',
+        systemContext: 'Trapped in escape pod in alien ocean, ship 5% functional, critical oxygen supply'
+    },
+    {
+        id: 'derelict_freighter',
+        name: 'Derelict Freighter',
+        shipHealth: 30,
+        fuel: 15,
+        inventory: { iron: 10, zinc: 5 },
+        prompt: 'Begin the game. The player wakes up in the cargo bay of an abandoned freighter orbiting a dead planet. Their small ship is docked nearby but damaged. The freighter is dark, filled with debris, and something is making scratching sounds in the corridors. Describe this ominous awakening.',
+        systemContext: 'Aboard derelict freighter, ship 30% functional, limited fuel'
+    },
+    {
+        id: 'alien_study',
+        name: 'Alien Research Facility',
+        shipHealth: 50,
+        fuel: 20,
+        inventory: { nanites: 5 },
+        prompt: 'Begin the game. The player regains consciousness on a cold metallic table in a sterile alien laboratory. Strange beings with too many eyes are observing them, taking notes in an incomprehensible language. Medical instruments hover nearby. Through a translucent wall, they can see their ship intact in a containment field. Describe this unsettling moment of awakening.',
+        systemContext: 'Being studied by aliens in clinical facility, ship 50% functional and intact'
+    },
+    {
+        id: 'frozen_tundra',
+        name: 'Frozen Wasteland',
+        shipHealth: 25,
+        fuel: 8,
+        inventory: { heridium: 7, titanium: 3 },
+        prompt: 'Begin the game. The player awakens to freezing cold inside their ship on an ice world. Frost covers every surface, the heating system is failing, and howling winds batter the hull. Through the viewport, they see strange ice formations and what might be caves. Describe this frozen nightmare.',
+        systemContext: 'Crashed on ice world, ship 25% functional, heating failing'
+    }
+];
 
 // ===== SYSTEM PROMPT =====
 function getSystemPrompt() {
@@ -54,13 +111,13 @@ function getSystemPrompt() {
 
 CORE RULES:
 1. Players CANNOT skip progression - they must overcome challenges
-2. Starting condition: Crashed on random planet, ship 15% functional, no fuel
+2. Starting conditions vary (crash landing, space drift, underwater pod, derelict freighter, alien study, frozen wasteland)
 3. Ultimate goal: Repair ship → explore galaxy → reach center
 4. Procedural generation: Every planet, alien, event is unique
 5. Death is possible - actions have consequences
 
 GAME MECHANICS YOU MUST ENFORCE:
-- Dice rolls for difficulty: Easy (DC 8), Medium (DC 12), Hard (DC 16), Very Hard (DC 20)
+- Dice rolls for difficulty: Easy (DC 6), Medium (DC 9), Hard (DC 13), Very Hard (DC 17)
 - When player takes action that requires skill check, the roll result will be provided
 - Resources required for repairs: specific amounts needed
 - Fuel consumption: warp jumps require plutonium
@@ -107,7 +164,7 @@ let gameState = null;
 let autoSaveTimeout = null;
 let isProcessingAction = false;
 let pendingAction = null; // Stores action info while skill spending modal is open
-let logCounter = 1; // Track narrative log number
+let logCounter = 0; // Track narrative log number
 let webllmEngine = null;
 let webllmModule = null;
 let isWebLLMInitialized = false;
@@ -505,6 +562,8 @@ function animateDiceRoll(check, skillProgress, callback) {
     const maxFrames = 11;
 
     const animationInterval = setInterval(() => {
+        playDiceTickSound(); // Sound on each tick
+
         const randomRoll = Math.floor(Math.random() * 20) + 1;
         diceEl.textContent = `🎲 Rolling for ${check.difficulty}${skillText}\n${randomRoll}...`;
 
@@ -513,6 +572,15 @@ function animateDiceRoll(check, skillProgress, callback) {
             clearInterval(animationInterval);
             // Show result without skill points
             displayDiceRoll(check, null);
+
+            // Play success/failure sound after result shows
+            setTimeout(() => {
+                if (check.success) {
+                    playSuccessSound();
+                } else {
+                    playFailureSound();
+                }
+            }, 100);
 
             // After 0.5s, add skill points if earned
             if (skillProgress?.pointsAwarded) {
@@ -772,7 +840,181 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// ===== SOUND SYSTEM =====
+let audioContext = null;
+let isSoundMuted = false;
+
+function initAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+function playClickSound() {
+    if (isSoundMuted) return;
+
+    const ctx = initAudioContext();
+
+    // Create mechanical click with brief noise burst
+    const oscillator1 = ctx.createOscillator();
+    const oscillator2 = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Two frequencies for mechanical click effect
+    oscillator1.type = 'square';
+    oscillator1.frequency.value = 180;
+    oscillator2.type = 'square';
+    oscillator2.frequency.value = 220;
+
+    // Very short, sharp envelope for click
+    gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+
+    oscillator1.start(ctx.currentTime);
+    oscillator1.stop(ctx.currentTime + 0.03);
+    oscillator2.start(ctx.currentTime);
+    oscillator2.stop(ctx.currentTime + 0.03);
+}
+
+function playHoverSound() {
+    if (isSoundMuted) return;
+
+    const ctx = initAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 600;
+
+    // Very subtle, brief hover sound
+    gainNode.gain.setValueAtTime(0.03, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.02);
+
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.02);
+}
+
+function playDiceTickSound() {
+    if (isSoundMuted) return;
+
+    const ctx = initAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Short beep with varying pitch
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 400 + Math.random() * 300; // Random pitch beep
+
+    gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.06);
+
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.06);
+}
+
+function playSuccessSound() {
+    if (isSoundMuted) return;
+
+    const ctx = initAudioContext();
+
+    // Series of ascending beeps: 500Hz -> 650Hz -> 800Hz
+    [0, 0.08, 0.16].forEach((delay, index) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 500 + (index * 150);
+
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime + delay);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + 0.07);
+
+        oscillator.start(ctx.currentTime + delay);
+        oscillator.stop(ctx.currentTime + delay + 0.07);
+    });
+}
+
+function playFailureSound() {
+    if (isSoundMuted) return;
+
+    const ctx = initAudioContext();
+
+    // Series of descending beeps: 400Hz -> 300Hz -> 200Hz
+    [0, 0.09, 0.18].forEach((delay, index) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 400 - (index * 100);
+
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime + delay);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + 0.08);
+
+        oscillator.start(ctx.currentTime + delay);
+        oscillator.stop(ctx.currentTime + delay + 0.08);
+    });
+}
+
+function toggleMute() {
+    isSoundMuted = !isSoundMuted;
+    localStorage.setItem('nmstxt_sound_muted', isSoundMuted ? 'true' : 'false');
+    updateMuteButtonUI();
+}
+
+function updateMuteButtonUI() {
+    const btn = document.getElementById('mute-btn');
+    if (btn) {
+        btn.textContent = isSoundMuted ? 'Unmute' : 'Mute';
+        btn.setAttribute('aria-label', isSoundMuted ? 'Unmute sounds' : 'Mute sounds');
+    }
+}
+
+function loadSoundSettings() {
+    const stored = localStorage.getItem('nmstxt_sound_muted');
+    isSoundMuted = stored === 'true';
+    updateMuteButtonUI();
+}
+
 // ===== RESPONSE PARSING =====
+function detectDeathInNarrative(narrative) {
+    const text = narrative.toLowerCase();
+    const deathPhrases = [
+        /you\s+(die|died|have died|are dead)/,
+        /your\s+death/,
+        /(succumb|perish|perished)/,
+        /(life|consciousness)\s+(fades|slips away)/,
+        /(last|final)\s+breath/,
+        /cease\s+to\s+exist/,
+        /game\s+over/,
+        /the\s+end\s+(has\s+)?come/,
+        /no\s+survivors/,
+        /you\s+are\s+dead/,
+        /breath\s+stops/,
+        /consciousness\s+fades/
+    ];
+    const isDead = deathPhrases.some(pattern => pattern.test(text));
+    if (isDead) {
+        console.log('💀 Death detected in narrative');
+    }
+    return isDead;
+}
+
 function parseGameMasterResponse(text) {
     console.log('🎮 Parsing AI response...');
     console.log('Raw response:', text);
@@ -827,10 +1069,14 @@ function parseGameMasterResponse(text) {
     // Everything else is narrative
     parsed.narrative = text.trim();
 
+    // Check for death in narrative
+    parsed.isPlayerDead = detectDeathInNarrative(parsed.narrative);
+
     console.log('✅ Parse complete:', {
         hasNarrative: !!parsed.narrative,
         hasStateUpdate: !!parsed.stateUpdate,
-        optionCount: parsed.options.length
+        optionCount: parsed.options.length,
+        isPlayerDead: parsed.isPlayerDead
     });
 
     // If still no options, provide default ones
@@ -861,6 +1107,11 @@ function parseStateUpdate(updateText) {
         if (trimmed.match(/fuel/i)) {
             const match = trimmed.match(/([+-]?\d+)/);
             if (match) updates.fuel = parseInt(match[1]);
+        }
+
+        if (trimmed.match(/distance/i)) {
+            const match = trimmed.match(/([+-]?\d+)/);
+            if (match) updates.distance = parseInt(match[1]);
         }
 
         if (trimmed.match(/inventory/i)) {
@@ -978,6 +1229,17 @@ function applyStateUpdates(updates) {
         console.log(`⛽ Fuel: ${oldFuel} → ${gameState.ship.fuel}`);
     }
 
+    if (updates.distance !== undefined) {
+        const oldDistance = gameState.currentLocation.distanceFromCenter;
+        gameState.currentLocation.distanceFromCenter = Math.max(0, gameState.currentLocation.distanceFromCenter + updates.distance);
+        console.log(`🌌 Distance from center: ${oldDistance.toLocaleString()} LY → ${gameState.currentLocation.distanceFromCenter.toLocaleString()} LY`);
+
+        // Track closest distance reached (for stats)
+        if (updates.distance < 0) {
+            gameState.stats.distanceFromCenter = gameState.currentLocation.distanceFromCenter;
+        }
+    }
+
     if (updates.inventory) {
         console.log('📦 Processing inventory updates:', updates.inventory);
         Object.entries(updates.inventory).forEach(([item, amount]) => {
@@ -1072,6 +1334,23 @@ async function processPlayerAction(actionText, difficulty = null, spentPoints = 
 
         // Apply state updates
         applyStateUpdates(parsed.stateUpdate);
+
+        // Check for death
+        const isPlayerDead = parsed.isPlayerDead || false;
+
+        if (isPlayerDead) {
+            gameState.stats.deathCount += 1;
+            gameState.currentNarrative = parsed.narrative;
+            gameState.currentOptions = [];
+            updateGameUI();
+
+            // Show game over modal after brief delay (let player read death narrative)
+            setTimeout(() => {
+                showGameOverModal();
+            }, 1500);
+
+            return; // Stop processing
+        }
 
         // Update current game state
         gameState.currentNarrative = parsed.narrative;
@@ -1258,6 +1537,23 @@ function showSkillSpendModal(actionText, difficulty) {
     showModal('skill-spend-modal');
 }
 
+function showGameOverModal() {
+    console.log('💀 Showing game over modal');
+
+    // Set death message
+    const messageEl = document.getElementById('death-message');
+    messageEl.textContent = 'Your journey has come to an end among the stars.';
+
+    // Populate stats
+    document.getElementById('final-planets').textContent = gameState.stats.planetsVisited;
+    document.getElementById('final-distance').textContent = (gameState.currentLocation.distanceFromCenter || 715342).toLocaleString() + ' LY';
+    document.getElementById('final-resources').textContent = gameState.stats.resourcesGathered;
+    document.getElementById('final-aliens').textContent = gameState.stats.aliensEncountered;
+    document.getElementById('final-jumps').textContent = gameState.stats.jumpsCompleted;
+
+    showModal('game-over-modal');
+}
+
 // ===== UI STATE MANAGEMENT =====
 function showLoading(message) {
     // Show loading message in narrative area for better UX
@@ -1319,6 +1615,69 @@ function hideModal(modalId) {
     document.getElementById(modalId).classList.remove('visible');
 }
 
+function showAlertModal(message, title = 'Notice') {
+    document.getElementById('alert-title').textContent = title;
+    document.getElementById('alert-message').textContent = message;
+    showModal('alert-modal');
+}
+
+function showConfirmModal(message, onConfirm, title = 'Confirm') {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+
+    // Store callback for the yes button
+    const yesBtn = document.getElementById('confirm-yes-btn');
+    const noBtn = document.getElementById('confirm-no-btn');
+
+    // Remove any existing listeners by cloning and replacing
+    const newYesBtn = yesBtn.cloneNode(true);
+    const newNoBtn = noBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+    noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+
+    // Add new listeners
+    newYesBtn.addEventListener('click', () => {
+        hideModal('confirm-modal');
+        if (onConfirm) onConfirm();
+    });
+
+    newNoBtn.addEventListener('click', () => {
+        hideModal('confirm-modal');
+    });
+
+    showModal('confirm-modal');
+}
+
+function showContinueOrNewGameModal(title, message, continueText, newGameText, onContinue, onNewGame) {
+    document.getElementById('continue-title').textContent = title;
+    document.querySelector('#continue-modal p').textContent = message;
+
+    const continueBtn = document.getElementById('continue-btn');
+    const newGameBtn = document.getElementById('start-new-btn');
+
+    continueBtn.textContent = continueText;
+    newGameBtn.textContent = newGameText;
+
+    // Remove any existing listeners by cloning and replacing
+    const newContinueBtn = continueBtn.cloneNode(true);
+    const newNewGameBtn = newGameBtn.cloneNode(true);
+    continueBtn.parentNode.replaceChild(newContinueBtn, continueBtn);
+    newGameBtn.parentNode.replaceChild(newNewGameBtn, newGameBtn);
+
+    // Add new listeners
+    newContinueBtn.addEventListener('click', () => {
+        hideModal('continue-modal');
+        if (onContinue) onContinue();
+    });
+
+    newNewGameBtn.addEventListener('click', () => {
+        hideModal('continue-modal');
+        if (onNewGame) onNewGame();
+    });
+
+    showModal('continue-modal');
+}
+
 function showApiKeyModal() {
     showModal('api-key-modal');
     document.getElementById('api-key-input').focus();
@@ -1368,13 +1727,21 @@ function showSaveModal() {
         el.addEventListener('click', () => {
             const slot = parseInt(el.dataset.slot);
             if (!el.classList.contains('empty')) {
-                if (!confirm('Overwrite this save?')) return;
-            }
-            if (saveGame(slot)) {
-                hideModal('save-modal');
-                hideError();
-                // Show brief success message without disrupting narrative
-                showSuccessMessage('Game saved!');
+                showConfirmModal('Overwrite this save?', () => {
+                    if (saveGame(slot)) {
+                        hideModal('save-modal');
+                        hideError();
+                        // Show brief success message without disrupting narrative
+                        showSuccessMessage('Game saved!');
+                    }
+                }, 'Confirm Save');
+            } else {
+                if (saveGame(slot)) {
+                    hideModal('save-modal');
+                    hideError();
+                    // Show brief success message without disrupting narrative
+                    showSuccessMessage('Game saved!');
+                }
             }
         });
     });
@@ -1425,15 +1792,40 @@ function hideDiceRoll() {
 
 // ===== GAME INITIALIZATION =====
 async function startNewGame() {
+    // Select random starting scenario
+    const scenario = STARTING_SCENARIOS[Math.floor(Math.random() * STARTING_SCENARIOS.length)];
+    console.log('🎮 Starting scenario:', scenario.name);
+
     gameState = createInitialGameState();
+
+    // Apply scenario-specific starting conditions
+    gameState.ship.health = scenario.shipHealth;
+    gameState.ship.fuel = scenario.fuel;
+    gameState.inventory = { ...gameState.inventory, ...scenario.inventory };
+
+    // Randomize starting distance (between 650,000 and 780,000 light years)
+    const randomDistance = 650000 + Math.floor(Math.random() * 130000);
+    gameState.currentLocation.distanceFromCenter = randomDistance;
+    console.log(`🌌 Starting distance: ${randomDistance.toLocaleString()} LY`);
+
     hideDiceRoll();
     hideError();
+
+    // Clear previous game UI immediately
+    document.getElementById('narrative').innerHTML = '';
+    document.getElementById('options').innerHTML = '';
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Update UI to show initial state (before AI response)
+    updateGameUI();
 
     try {
         showLoading('Initializing your adventure...');
 
-        // Call AI to generate starting scenario
-        const response = await callAI('Begin the game. Describe where the player wakes up on a strange planet with their ship crashed nearby.');
+        // Call AI with scenario-specific prompt
+        const response = await callAI(scenario.prompt);
 
         gameState.conversationHistory.push({
             role: 'assistant',
@@ -1473,7 +1865,18 @@ async function initializeGame() {
     // Check for auto-save
     const autoSaveExists = localStorage.getItem(STORAGE_KEYS.autoSave);
     if (autoSaveExists) {
-        showModal('continue-modal');
+        showContinueOrNewGameModal(
+            'Welcome Back',
+            'Auto-save detected. Continue your previous game or start a new one?',
+            'Continue',
+            'New Game',
+            () => {
+                if (loadGame(0)) {
+                    hideDiceRoll();
+                }
+            },
+            () => startNewGame()
+        );
     } else {
         startNewGame();
     }
@@ -1481,14 +1884,35 @@ async function initializeGame() {
 
 // ===== EVENT HANDLERS =====
 document.addEventListener('DOMContentLoaded', () => {
+    // Load sound settings
+    loadSoundSettings();
+
+    // Global hover sound for all buttons
+    document.addEventListener('mouseover', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            playHoverSound();
+        }
+    });
+
+    // Mute button
+    document.getElementById('mute-btn').addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent double sound from global handler
+        toggleMute();
+    });
+
     // Settings button
     document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
+
+    // Alert modal
+    document.getElementById('alert-ok-btn').addEventListener('click', () => {
+        hideModal('alert-modal');
+    });
 
     // API key modal
     document.getElementById('api-key-submit').addEventListener('click', () => {
         const apiKey = document.getElementById('api-key-input').value.trim();
         if (!apiKey) {
-            alert('Please enter an API key');
+            showAlertModal('Please enter an API key');
             return;
         }
         saveApiKey(apiKey);
@@ -1534,9 +1958,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Show info message about the change
             if (e.target.value === 'webllm') {
-                alert('WebLLM will download ~2GB on first use (Llama 3.2 model). The model runs entirely in your browser with no API costs.');
+                showAlertModal('WebLLM will download ~2GB on first use (Llama 3.2 model). The model runs entirely in your browser with no API costs.', 'AI Model Changed');
             } else {
-                alert('Switched to Claude API. You will need a valid API key to continue.');
+                showAlertModal('Switched to Claude API. You will need a valid API key to continue.', 'AI Model Changed');
             }
         });
     });
@@ -1544,7 +1968,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('change-api-key-btn').addEventListener('click', () => {
         const settings = getSettings();
         if (settings.aiModel === 'webllm') {
-            alert('API key is only needed for Claude API mode. You are currently using WebLLM, which runs entirely in your browser.');
+            showAlertModal('API key is only needed for Claude API mode. You are currently using WebLLM, which runs entirely in your browser.', 'Notice');
             return;
         }
         hideModal('settings-modal');
@@ -1561,22 +1985,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // New game
     document.getElementById('new-game-btn').addEventListener('click', () => {
-        if (confirm('Start a new game? Current progress will be lost unless saved.')) {
-            startNewGame();
-        }
-    });
-
-    // Continue modal
-    document.getElementById('continue-btn').addEventListener('click', () => {
-        hideModal('continue-modal');
-        if (loadGame(0)) {
-            hideDiceRoll();
-        }
-    });
-
-    document.getElementById('start-new-btn').addEventListener('click', () => {
-        hideModal('continue-modal');
-        startNewGame();
+        showContinueOrNewGameModal(
+            'Start New Game?',
+            'Current progress will be lost unless saved. Continue playing or start a new journey?',
+            'Continue Playing',
+            'New Game',
+            null, // Do nothing on continue
+            () => startNewGame() // Start new game on confirmation
+        );
     });
 
     // Skill spending modal
@@ -1600,6 +2016,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancel-action-btn').addEventListener('click', () => {
         hideModal('skill-spend-modal');
         pendingAction = null;
+    });
+
+    // Game over modal handlers
+    document.getElementById('restart-from-death-btn').addEventListener('click', () => {
+        hideModal('game-over-modal');
+        startNewGame();
+    });
+
+    document.getElementById('load-from-death-btn').addEventListener('click', () => {
+        hideModal('game-over-modal');
+        showLoadModal();
     });
 
     // Custom action form

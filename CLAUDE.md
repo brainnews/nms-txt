@@ -59,11 +59,12 @@ All styles use CSS variables for theming and are organized into clear sections (
 ### 3. Game Master System Prompt
 Located in `getSystemPrompt()` function in `js/game.js`. This is the core "game engine" - it defines:
 - Response format: `[STATE UPDATE]` and `[OPTIONS]` sections
-- Dice roll mechanics (Easy DC 8, Medium DC 12, Hard DC 16, Very Hard DC 20)
+- Dice roll mechanics (Easy DC 6, Medium DC 9, Hard DC 13, Very Hard DC 17)
 - Skill system acknowledgment (Claude sees skill usage in roll results)
 - Procedural generation rules
 - Tone and pacing guidelines
 - Game rules (no progression skipping, resource requirements, death mechanics)
+- Random starting scenarios (crash landing, space drift, underwater pod, derelict freighter, alien study, frozen wasteland)
 
 **Modifying game behavior requires updating the system prompt string in `getSystemPrompt()`.**
 
@@ -170,14 +171,97 @@ skills: {
 
 Note: `level` and `xp` are legacy fields kept for save compatibility. The active system uses `points` only.
 
-### 9. E-ink Optimization Strategy
+### 9. Random Starting Scenarios
+Each new game randomly selects from 6 starting scenarios defined in `STARTING_SCENARIOS` constant in `js/game.js`:
+
+1. **Crash Landing** - Classic planet crash, 15% ship health, no fuel
+2. **Adrift in Space** - Floating near planet, 40% ship health, minimal fuel
+3. **Underwater Pod** - Trapped in ocean escape pod, 5% ship health, oxygen supply
+4. **Derelict Freighter** - Aboard abandoned freighter, 30% ship health, some resources
+5. **Alien Study** - Being observed in alien laboratory, 50% ship health, ship intact
+6. **Frozen Tundra** - Crashed on ice world, 25% ship health, heating failing
+
+Each scenario has:
+- Unique starting ship health, fuel, and inventory
+- Custom narrative prompt for AI
+- System context for game master
+
+**Implementation:** `startNewGame()` function randomly selects scenario, applies starting conditions, and uses scenario-specific prompt. The scenario name is logged to console but not shown to player.
+
+### 10. Modal System
+All user prompts use custom modals instead of browser alerts/confirms:
+
+**Generic Modals:**
+- `showAlertModal(message, title)` - Informational messages with OK button
+- `showConfirmModal(message, onConfirm, title)` - Yes/No confirmations with callback
+- `showContinueOrNewGameModal(...)` - Reusable continue/new game modal with dynamic content
+
+**Specialized Modals:**
+- API key entry modal
+- Settings modal
+- Save/load slot modals
+- Skill spending modal
+- Game over modal with final statistics
+
+All modals use the same base styling and support e-ink mode.
+
+### 11. Death Detection System
+Player death is detected through **narrative-based pattern matching only**:
+
+**Detection:** `detectDeathInNarrative()` uses regex patterns to find death phrases in AI-generated narrative:
+- "you die/died/are dead", "your death", "succumb/perish"
+- "life fades", "last breath", "cease to exist", "game over"
+
+**Handling:** When death is detected:
+1. Game state stops accepting new actions
+2. Death narrative displays for 1.5 seconds
+3. Game over modal appears with final statistics
+4. Player can start new journey or load saved game
+
+**Important:** Ship health reaching 0% does NOT trigger game over - only narrative-based death detection.
+
+### 12. Sound System
+Programmatic sounds using Web Audio API:
+
+**Sounds:**
+- `playHoverSound()` - Subtle 600Hz sine wave on button hover (20ms, very quiet)
+- `playDiceTickSound()` - Variable pitch sine beeps during dice roll animation
+- `playSuccessSound()` - Ascending beeps (500→650→800Hz) on successful roll
+- `playFailureSound()` - Descending beeps (400→300→200Hz) on failed roll
+
+**Controls:**
+- Mute button in header toggles all sounds
+- Mute state persists to localStorage
+- Sounds only play after first user interaction (browser requirement)
+
+**Note:** Click sounds were removed - only hover sounds remain active.
+
+### 13. UI State Management
+Key UI behaviors:
+
+**New Game Flow:**
+1. Previous game UI cleared immediately (narrative and action buttons)
+2. Page scrolls to top smoothly
+3. UI updates to show new game's initial state
+4. Loading message: "Initializing your adventure..."
+5. First narrative appears with "Log: 00001" (counter starts at 0)
+
+**Log Counter:**
+- `logCounter` variable starts at 0
+- Increments after each narrative display
+- Displayed as "LOG: XXXXX" in narrative header
+
+### 14. E-ink Optimization Strategy
 CSS optimizations for e-ink displays:
-- High contrast: `#FEFEF8` background, `#1A1A1A` text
+- High contrast dark mode: `#FEFEF8` background, `#1A1A1A` text (default)
+- High contrast light mode: `#F5F5F5` background, `#000000` text (e-ink mode enabled)
 - Serif font (Georgia) at 20px with 1.8 line height
 - **Zero animations or transitions** (prevents ghosting)
 - Static layout with batched DOM updates
 - 48px minimum touch targets
 - Generous spacing throughout
+
+**E-ink Mode Toggle:** Available in settings, applies light palette with pure black text for optimal e-ink readability.
 
 ## Development Workflow
 
@@ -321,12 +405,14 @@ nms-txt/
 Edit difficulty constants in `js/game.js`:
 ```javascript
 const DIFFICULTY_DC = {
-    easy: 8,      // 65% success rate
-    medium: 12,   // 45% success rate
-    hard: 16,     // 25% success rate
-    'very hard': 20  // 5% success rate (natural 20 only)
+    easy: 6,      // ~75% success rate
+    medium: 9,    // ~60% success rate
+    hard: 13,     // ~40% success rate
+    'very hard': 17  // ~20% success rate
 };
 ```
+
+**Note:** Also update the DC values in `getSystemPrompt()` to match these constants.
 
 ### Adjusting Claude Model or Settings
 Edit configuration in `js/game.js`:
@@ -473,12 +559,12 @@ Cloudflare Function handles API proxy in production:
 ### Conversation History Too Large
 - Check message count: `gameState.conversationHistory.length`
 - Should never exceed 20 (plus system prompt)
-- If larger, pruning function isn't working - check `pruneConversationHistory()` at ~line 1686
+- If larger, pruning function isn't working - check `pruneConversationHistory()` in `js/game.js`
 
 ### Markdown Not Rendering
 - Verify marked.js loaded: check browser console for 404 errors on CDN script
 - Check markdown parsing: `marked.parse('**test**')` in console
-- Verify narrative element updates in `updateGameUI()` at ~line 1849
+- Verify narrative element updates in `updateGameUI()` in `js/game.js`
 
 ### Skill System Issues
 - **Points not awarded:** Check console for skill progress logs (`✨ [Skill] earned X point(s)`)

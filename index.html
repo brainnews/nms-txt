@@ -16,7 +16,10 @@
         <h1>
             <img src="assets/logo.svg" alt="NMS.TXT" width="68" height="14">
         </h1>
-        <button class="panel-toggle" id="settings-btn" aria-label="Open settings">settings</button>
+        <div class="header-buttons">
+            <button class="panel-toggle" id="mute-btn" aria-label="Mute sounds">mute</button>
+            <button class="panel-toggle" id="settings-btn" aria-label="Open settings">settings</button>
+        </div>
     </header>
 
     <!-- Main game area -->
@@ -267,6 +270,66 @@
                 <button class="modal-btn" id="spend-and-roll-btn">Roll with Bonus</button>
                 <button class="modal-btn secondary" id="skip-spend-btn">Roll without Bonus</button>
                 <button class="modal-btn secondary" id="cancel-action-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal" role="dialog" aria-labelledby="game-over-title">
+        <div class="modal-content">
+            <h2 id="game-over-title">Journey's End</h2>
+            <p id="death-message">Your journey has come to an end among the stars.</p>
+
+            <div class="stats-summary">
+                <h3>Final Statistics</h3>
+                <div class="stat-line">
+                    <span>Planets Visited:</span>
+                    <span id="final-planets">0</span>
+                </div>
+                <div class="stat-line">
+                    <span>Distance Traveled:</span>
+                    <span id="final-distance">0 LY</span>
+                </div>
+                <div class="stat-line">
+                    <span>Resources Gathered:</span>
+                    <span id="final-resources">0</span>
+                </div>
+                <div class="stat-line">
+                    <span>Aliens Encountered:</span>
+                    <span id="final-aliens">0</span>
+                </div>
+                <div class="stat-line">
+                    <span>Jumps Completed:</span>
+                    <span id="final-jumps">0</span>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn" id="restart-from-death-btn">Start New Journey</button>
+                <button class="modal-btn secondary" id="load-from-death-btn">Load Saved Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Alert Modal -->
+    <div id="alert-modal" class="modal" role="dialog" aria-labelledby="alert-title">
+        <div class="modal-content">
+            <h2 id="alert-title">Notice</h2>
+            <p id="alert-message"></p>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="alert-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirm Modal -->
+    <div id="confirm-modal" class="modal" role="dialog" aria-labelledby="confirm-title">
+        <div class="modal-content">
+            <h2 id="confirm-title">Confirm</h2>
+            <p id="confirm-message"></p>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="confirm-yes-btn">Yes</button>
+                <button class="modal-btn secondary" id="confirm-no-btn">No</button>
             </div>
         </div>
     </div>

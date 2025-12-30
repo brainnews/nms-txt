@@ -14,6 +14,25 @@
 
 /* ===== E-INK OPTIMIZATIONS ===== */
 /* E-ink optimization styles - applied via body class when enabled in settings */
+body.eink-mode {
+    /* E-ink light palette for better contrast on e-ink displays */
+    --bg-color: #F5F5F5;        /* Off-white background */
+    --container-bg: #FFFFFF;     /* Pure white containers */
+    --accent-bg: #E8E8E8;        /* Light gray accents */
+    --text-color: #1A1A1A;       /* Deep black text */
+    --primary-accent: #000000;   /* Pure black buttons */
+    --border-color: #666666;     /* Medium gray borders */
+    --button-bg: #DDDDDD;        /* Light gray buttons */
+    --button-text: #1A1A1A;      /* Dark button text */
+    --error-color: #000000;      /* Black for errors */
+    --success-color: #1A1A1A;    /* Dark for success */
+}
+
+body.eink-mode .modal-btn.secondary,
+body.eink-mode .menu-btn.secondary {
+    color: var(--text-color);    /* Ensure dark text on light backgrounds */
+}
+
 body.eink-mode *,
 body.eink-mode *::before,
 body.eink-mode *::after {
@@ -57,6 +76,11 @@ h1 {
     text-transform: uppercase;
 }
 
+.header-buttons {
+    display: flex;
+    gap: 8px;
+}
+
 .settings-btn {
     background: var(--primary-accent);
     color: var(--bg-color);
@@ -70,6 +94,10 @@ h1 {
     cursor: pointer;
     min-height: 13px;
     border-radius: 2px;
+}
+
+.settings-btn:hover {
+    opacity: 0.9;
 }
 
 .settings-btn:active {
@@ -218,6 +246,12 @@ h1 {
     gap: 14px;
 }
 
+.action-btn:hover {
+    background: var(--primary-accent);
+    color: var(--bg-color);
+    opacity: 0.7;
+}
+
 .action-btn:active {
     background: var(--primary-accent);
     color: var(--bg-color);
@@ -289,6 +323,10 @@ h1 {
     min-width: 82px;
     min-height: 36px;
     letter-spacing: 0.02em;
+}
+
+#custom-action-submit:hover {
+    opacity: 0.9;
 }
 
 #custom-action-submit:active {
@@ -402,9 +440,9 @@ h1 {
 }
 
 .panel-toggle {
-    background: var(--primary-accent);
-    color: var(--bg-color);
-    border: none;
+    border: 1px solid var(--primary-accent);
+    background-color: transparent;
+    color: var(--text-color);
     padding: 1px 5px;
     font-size: 0.8rem;
     font-weight: 500;
@@ -415,7 +453,25 @@ h1 {
     min-height: 13px;
 }
 
+#mute-btn.panel-toggle {
+    border: 1px solid var(--primary-accent);
+    background-color: transparent;
+    color: var(--text-color);
+}
+
+.panel-toggle:hover {
+    opacity: 0.9;
+}
+
+#mute-btn.panel-toggle:hover {
+    opacity: 0.9;
+}
+
 .panel-toggle:active {
+    opacity: 0.8;
+}
+
+#mute-btn.panel-toggle:active {
     opacity: 0.8;
 }
 
@@ -507,9 +563,13 @@ h1 {
 }
 
 .menu-btn.primary {
-    background: var(--primary-accent);
-    color: var(--bg-color);
-    border: none;
+    border: 1px solid var(--primary-accent);
+    background-color: transparent;
+    color: var(--text-color);
+}
+
+.menu-btn.primary:hover {
+    opacity: 0.9;
 }
 
 .menu-btn.primary:active {
@@ -518,13 +578,16 @@ h1 {
 
 .menu-btn.secondary {
     background: transparent;
-    color: var(--primary-accent);
-    border: 1px solid var(--primary-accent);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.menu-btn.secondary:hover {
+    opacity: 0.9;
 }
 
 .menu-btn.secondary:active {
-    background: var(--primary-accent);
-    color: var(--bg-color);
+    opacity: 0.8;
 }
 
 /* ===== LOADING AND ERRORS ===== */
@@ -573,7 +636,7 @@ h1 {
 
 .modal.visible {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     padding-top: 40px;
 }
@@ -586,7 +649,8 @@ h1 {
     width: 100%;
     max-height: calc(100vh - 80px);
     overflow-y: auto;
-    border-radius: 2px;
+    border-radius: 22px;
+    text-align: center;
 }
 
 .modal-content h2 {
@@ -653,9 +717,9 @@ h1 {
 
 .modal-btn {
     flex: 1;
-    background: var(--primary-accent);
-    color: var(--bg-color);
-    border: none;
+    background: transparent;
+    color: var(--text-color);
+    border: 1px solid var(--primary-accent);
     padding: 12px 20px;
     font-size: 0.8rem;
     font-weight: 500;
@@ -666,13 +730,56 @@ h1 {
     border-radius: 2px;
 }
 
+.modal-btn:hover {
+    opacity: 0.9;
+}
+
 .modal-btn:active {
     opacity: 0.8;
 }
 
 .modal-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.modal-btn.secondary:hover {
+    opacity: 0.9;
+}
+
+.modal-btn.secondary:active {
+    opacity: 0.8;
+}
+
+/* Game over stats */
+.stats-summary {
+    margin: 20px 0;
+    padding: 20px;
     background: var(--accent-bg);
     border: 1px solid var(--border-color);
+}
+
+.stats-summary h3 {
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.stat-line {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    font-size: 1rem;
+}
+
+.stat-line span:first-child {
+    opacity: 0.7;
+}
+
+.stat-line span:last-child {
+    font-weight: 500;
 }
 
 /* Save slots */
@@ -681,6 +788,11 @@ h1 {
     padding: 20px;
     margin-bottom: 15px;
     cursor: pointer;
+}
+
+.save-slot:hover {
+    background: var(--border-color);
+    opacity: 0.5;
 }
 
 .save-slot:active {
