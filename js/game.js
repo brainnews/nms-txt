@@ -1338,7 +1338,8 @@ async function processPlayerAction(actionText, difficulty = null, spentPoints = 
         }
 
         // Show loading message in narrative area
-        showLoading('Processing your action...');
+        const loadingAnimType = detectSkillFromAction(actionText);
+        showLoading('Processing your action...', loadingAnimType);
 
         // Format message with current state
         const userMessage = formatUserMessage(actionText, diceRoll);
@@ -1579,17 +1580,21 @@ function showGameOverModal() {
 }
 
 // ===== UI STATE MANAGEMENT =====
-function showLoading(message) {
+function showLoading(message, actionType) {
     // Show loading message in narrative area for better UX
     const narrativeEl = document.getElementById('narrative');
     if (narrativeEl) {
+        const typeMap = { combat: 'combat', technology: 'technology', survival: 'survival', exploration: 'exploration' };
+        narrativeEl.dataset.loadingType = typeMap[actionType] || 'space';
         narrativeEl.innerHTML = `<p class="loading-message">${message}</p>`;
     }
 }
 
 function hideLoading() {
-    // Loading will be replaced by narrative content
-    // No need to clear anything here
+    const narrativeEl = document.getElementById('narrative');
+    if (narrativeEl) {
+        delete narrativeEl.dataset.loadingType;
+    }
 }
 
 function showError(message) {

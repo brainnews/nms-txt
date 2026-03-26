@@ -8,6 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The project is designed for e-ink devices (Boox Palma) and mobile phones with a minimal, high-contrast aesthetic optimized for readability and minimal screen refreshes.
 
+## Terminal App
+
+A separate Python/Textual TUI version lives in `terminal/`. It has its own `CLAUDE.md` with full details. Quick start:
+
+```bash
+cd terminal
+source .venv/bin/activate  # or: python3 -m venv .venv && pip install -e .
+nms-txt
+```
+
+Talks directly to the Anthropic API (no proxy). Shares the same game design and system prompt structure as the web app. See `terminal/CLAUDE.md` for architecture details and Textual-specific gotchas.
+
 ## Architecture
 
 **Tech Stack:**
