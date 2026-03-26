@@ -17,7 +17,30 @@ A text-based space exploration game inspired by No Man's Sky, powered by the Cla
 - 🎨 Minimal, high-contrast design for readability
 - 🔒 Privacy-focused: API keys stored locally, WebLLM runs entirely offline
 
-## Local Development
+## Terminal Version (TUI)
+
+A Python/Textual terminal app lives in `terminal/`. Same game, same Claude backend — no browser required.
+
+### Prerequisites
+
+- Python 3.10+
+- Claude API key ([get one here](https://console.anthropic.com/))
+
+### Setup
+
+```bash
+cd terminal
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+nms-txt
+```
+
+On first launch you'll be prompted for your API key, which is saved to `~/.config/nms-txt/config.json`.
+
+---
+
+## Web Version (Local Development)
 
 ### Prerequisites
 
